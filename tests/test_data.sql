@@ -152,7 +152,6 @@ CREATE TABLE IF NOT EXISTS inventory.stock_levels (
     warehouse_id INTEGER REFERENCES inventory.warehouses(warehouse_id),
     quantity_on_hand INTEGER DEFAULT 0,
     quantity_reserved INTEGER DEFAULT 0,
-    quantity_available GENERATED ALWAYS AS (quantity_on_hand - quantity_reserved) STORED,
     reorder_level INTEGER DEFAULT 10,
     max_stock_level INTEGER DEFAULT 1000,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -355,8 +354,7 @@ INSERT INTO order_items (order_id, product_id, quantity, unit_price, discount_pe
 
 -- Order 15: Office setup
 (15, 5, 1, 599.99, 0.00),  -- Standing Desk
-(15, 6, 1, 79.99, 0.00),   -- Desk Lamp
-ON CONFLICT DO NOTHING;
+(15, 6, 1, 79.99, 0.00);   -- Desk Lamp
 
 -- Insert customer addresses
 INSERT INTO customer_addresses (customer_id, address_type, street_address, city, state, zip_code, is_default) VALUES
@@ -459,15 +457,15 @@ ON CONFLICT DO NOTHING;
 
 -- Insert some inventory movements
 INSERT INTO inventory.inventory_movements (product_id, warehouse_id, movement_type, quantity, reference_id, reference_type, movement_date, notes) VALUES
-(1, 1, 'out', -1, 1, 'order', '2024-01-15 10:00:00', 'Order fulfillment'),
-(2, 1, 'out', -1, 1, 'order', '2024-01-15 10:00:00', 'Order fulfillment'),
-(3, 1, 'out', -1, 1, 'order', '2024-01-15 10:00:00', 'Order fulfillment'),
-(4, 2, 'out', -1, 2, 'order', '2024-01-20 14:30:00', 'Order fulfillment'),
-(6, 2, 'out', -1, 2, 'order', '2024-01-20 14:30:00', 'Order fulfillment'),
+-- Use only positive quantities, direction is indicated by movement_type
+(1, 1, 'out', 1, 1, 'order', '2024-01-15 10:00:00', 'Order fulfillment'),
+(2, 1, 'out', 1, 1, 'order', '2024-01-15 10:00:00', 'Order fulfillment'),
+(3, 1, 'out', 1, 1, 'order', '2024-01-15 10:00:00', 'Order fulfillment'),
+(4, 2, 'out', 1, 2, 'order', '2024-01-20 14:30:00', 'Order fulfillment'),
+(6, 2, 'out', 1, 2, 'order', '2024-01-20 14:30:00', 'Order fulfillment'),
 (7, 1, 'in', 100, NULL, 'receiving', '2024-02-01 09:00:00', 'New stock received'),
 (8, 1, 'in', 200, NULL, 'receiving', '2024-02-01 09:00:00', 'New stock received'),
-(1, 1, 'in', 10, NULL, 'receiving', '2024-02-15 11:00:00', 'Restock from vendor')
-ON CONFLICT DO NOTHING;
+(1, 1, 'in', 10, NULL, 'receiving', '2024-02-15 11:00:00', 'Restock from vendor');
 
 -- Insert simple test data (keeping your original)
 INSERT INTO test_table (value) VALUES 
