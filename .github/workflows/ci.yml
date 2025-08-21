@@ -34,6 +34,27 @@ jobs:
       - name: Wait for PostgreSQL
         run: |
           until pg_isready -h localhost -p 5432 -U postgres; do sleep 1; done
+      - name: Start MindsDB
+        run: |
+          # Start MindsDB in background
+          python -m mindsdb --api http --verbose &
+          MINDSDB_PID=$!
+          echo "MINDSDB_PID=$MINDSDB_PID" >> $GITHUB_ENV
+
+          # Wait for MindsDB to be ready
+          echo "Waiting for MindsDB to start..."
+          for i in {1..60}; do
+            if curl -f http://localhost:47334/api/status 2>/dev/null; then
+              echo "MindsDB is ready!"
+              break
+            fi
+            if [ $i -eq 60 ]; then
+              echo "MindsDB failed to start within 60 seconds"
+              exit 1
+            fi
+            sleep 1
+          done
+
       - name: Run tests
         env:
           POSTGRES_HOST: localhost
@@ -42,3 +63,10 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: test_db
         run: pytest
+
+      - name: Stop MindsDB
+        run: |
+          if [ -n "$MINDSDB_PID" ]; then
+            echo "Stopping MindsDB..."
+            kill $MINDSDB_PID
+          fi
