@@ -30,7 +30,7 @@ def test_connection(db_conn):
 
 
 def test_create_postgresql_db_via_http():
-    sql = '''
+    sql = """
     CREATE DATABASE postgresql_db
     WITH ENGINE = "postgres",
     PARAMETERS = {
@@ -40,23 +40,20 @@ def test_create_postgresql_db_via_http():
         "password": "postgres",
         "database": "test_db"
     };
-    '''
-    resp = requests.post(
-        "http://localhost:47334/api/sql/query",
-        json={"query": sql}
-    )
+    """
+    resp = requests.post("http://localhost:47334/api/sql/query",
+                         json={"query": sql})
     assert resp.status_code == 200
     data = resp.json()
     assert data.get("type") != "error", f"Error: {data}"
-    select_sql = '''
+    select_sql = """
     SELECT * FROM postgresql_db.test_table;
-    '''
-    
+    """
+
     resp = requests.post(
-        "http://localhost:47334/api/sql/query",
-        json={"query": select_sql}
+        "http://localhost:47334/api/sql/query", json={"query": select_sql}
     )
     assert resp.status_code == 200
     data = resp.json()
-    print(data)
+    print(f"::notice::Data returned: {data}")
     assert data.get("type") != "error", f"Error: {data}"
