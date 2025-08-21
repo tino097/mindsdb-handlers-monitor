@@ -49,7 +49,7 @@ def test_create_postgresql_db_via_http():
     data = resp.json()
     assert data.get("type") != "error", f"Error: {data}"
     select_sql = '''
-    SELECT * FROM postgresql_db;
+    SELECT * FROM postgresql_db.test_table;
     '''
     
     resp = requests.post(
