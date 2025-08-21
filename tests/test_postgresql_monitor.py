@@ -200,9 +200,11 @@ class TestComplexQueries:
             sl.quantity_reserved,
             (sl.quantity_on_hand - sl.quantity_reserved) AS quantity_available,
             sl.reorder_level,
-            CASE 
-                WHEN (sl.quantity_on_hand - sl.quantity_reserved) AS quantity_available <= sl.reorder_level THEN 'Reorder Needed'
-                WHEN (sl.quantity_on_hand - sl.quantity_reserved) AS quantity_available <= sl.reorder_level * 2 THEN 'Low Stock'
+            CASE
+                WHEN quantity_available <= sl.reorder_level 
+                THEN 'Reorder Needed'
+                WHEN quantity_available <= sl.reorder_level * 2 
+                THEN 'Low Stock'
                 ELSE 'Stock OK'
             END as stock_status
         FROM postgresql_db.products p
