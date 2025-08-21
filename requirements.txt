@@ -1,0 +1,3 @@
+mindsdb[postgresql]
+pytest
+psycopg2-binary
