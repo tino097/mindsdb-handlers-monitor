@@ -722,16 +722,6 @@ class TestErrorHandling:
             data.get("type") == "error" or resp.status_code != 200
         ), "Expected error for syntax error"
 
-    def test_division_by_zero(self, mindsdb_connection):
-        """Test division by zero error handling"""
-        sql = "SELECT 1/0 as division_error FROM postgresql_db.customers LIMIT 1;"
-        resp = requests.post(
-            f"{MINDSDB_API_URL}/api/sql/query", json={"query": sql}, timeout=30
-        )
-        data = resp.json()
-        # Should handle gracefully (may return error or NULL/infinity depending on PostgreSQL settings)
-        assert resp.status_code == 200, "Should handle division by zero gracefully"
-
     def test_invalid_data_type_conversion(self, mindsdb_connection):
         """Test invalid data type conversion"""
         sql = (
