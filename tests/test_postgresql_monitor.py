@@ -198,11 +198,11 @@ class TestComplexQueries:
             w.location,
             sl.quantity_on_hand,
             sl.quantity_reserved,
-            sl.quantity_available,
+            (sl.quantity_on_hand - sl.quantity_reserved) AS quantity_available,
             sl.reorder_level,
             CASE 
-                WHEN sl.quantity_available <= sl.reorder_level THEN 'Reorder Needed'
-                WHEN sl.quantity_available <= sl.reorder_level * 2 THEN 'Low Stock'
+                WHEN (sl.quantity_on_hand - sl.quantity_reserved) AS quantity_available <= sl.reorder_level THEN 'Reorder Needed'
+                WHEN (sl.quantity_on_hand - sl.quantity_reserved) AS quantity_available <= sl.reorder_level * 2 THEN 'Low Stock'
                 ELSE 'Stock OK'
             END as stock_status
         FROM postgresql_db.products p
@@ -479,7 +479,7 @@ class TestInventoryManagement:
             p.sku,
             SUM(sl.quantity_on_hand) as total_stock,
             SUM(sl.quantity_reserved) as total_reserved,
-            SUM(sl.quantity_available) as total_available,
+            SUM((sl.quantity_on_hand - sl.quantity_reserved) AS quantity_available) as total_available,
             COUNT(sl.warehouse_id) as warehouses_with_stock,
             AVG(sl.reorder_level) as avg_reorder_level,
             MAX(sl.last_updated) as last_inventory_update
@@ -502,20 +502,20 @@ class TestInventoryManagement:
             w.location,
             sl.quantity_on_hand,
             sl.quantity_reserved,
-            sl.quantity_available,
+            (sl.quantity_on_hand - sl.quantity_reserved) AS quantity_available,
             sl.reorder_level,
             sl.max_stock_level,
-            (sl.reorder_level - sl.quantity_available) as shortage_amount,
+            (sl.reorder_level - (sl.quantity_on_hand - sl.quantity_reserved) AS quantity_available) as shortage_amount,
             CASE 
-                WHEN sl.quantity_available <= 0 THEN 'Out of Stock'
-                WHEN sl.quantity_available <= sl.reorder_level THEN 'Reorder Now'
-                WHEN sl.quantity_available <= sl.reorder_level * 1.5 THEN 'Low Stock Warning'
+                WHEN (sl.quantity_on_hand - sl.quantity_reserved) AS quantity_available <= 0 THEN 'Out of Stock'
+                WHEN (sl.quantity_on_hand - sl.quantity_reserved) AS quantity_available <= sl.reorder_level THEN 'Reorder Now'
+                WHEN (sl.quantity_on_hand - sl.quantity_reserved) AS quantity_available <= sl.reorder_level * 1.5 THEN 'Low Stock Warning'
                 ELSE 'Adequate Stock'
             END as stock_alert_level
         FROM postgresql_db.inventory.stock_levels sl
         JOIN postgresql_db.products p ON sl.product_id = p.product_id
         JOIN postgresql_db.inventory.warehouses w ON sl.warehouse_id = w.warehouse_id
-        WHERE sl.quantity_available <= sl.reorder_level AND w.is_active = TRUE
+        WHERE (sl.quantity_on_hand - sl.quantity_reserved) AS quantity_available <= sl.reorder_level AND w.is_active = TRUE
         ORDER BY stock_alert_level, shortage_amount DESC;
         """
         data = execute_sql_via_mindsdb(sql)
