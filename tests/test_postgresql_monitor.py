@@ -32,7 +32,7 @@ def test_connection(db_conn):
 def test_create_postgresql_db_via_http():
     sql = '''
     CREATE DATABASE postgresql_db
-    WITH ENGINE = "postgresql",
+    WITH ENGINE = "postgres",
     PARAMETERS = {
         "host": "localhost",
         "port": 5432,
