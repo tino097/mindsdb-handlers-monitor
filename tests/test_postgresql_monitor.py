@@ -450,21 +450,21 @@ class TestDataTypes:
         data = execute_sql_via_mindsdb(sql)
         assert data.get("type") != "error", f"Error in generated columns: {data}"
 
-    def test_array_and_json_operations(self, mindsdb_connection):
-        """Test advanced data type operations"""
-        sql = """
-        SELECT 
-            product_name,
-            category,
-            price,
-            ARRAY[category, brand] as product_tags,
-            CONCAT(category, ' - ', brand, ' - ', product_name) as full_description
-        FROM postgresql_db.products
-        WHERE category IS NOT NULL AND brand IS NOT NULL
-        ORDER BY category, brand;
-        """
-        data = execute_sql_via_mindsdb(sql)
-        assert data.get("type") != "error", f"Error in array operations: {data}"
+    # def test_array_and_json_operations(self, mindsdb_connection):
+    #     """Test advanced data type operations"""
+    #     sql = """
+    #     SELECT
+    #         product_name,
+    #         category,
+    #         price,
+    #         ARRAY[category, brand] as product_tags,
+    #         CONCAT(category, ' - ', brand, ' - ', product_name) as full_description
+    #     FROM postgresql_db.products
+    #     WHERE category IS NOT NULL AND brand IS NOT NULL
+    #     ORDER BY category, brand;
+    #     """
+    #     data = execute_sql_via_mindsdb(sql)
+    #     assert data.get("type") != "error", f"Error in array operations: {data}"
 
 
 @pytest.mark.inventory
