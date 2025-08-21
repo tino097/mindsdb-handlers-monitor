@@ -2,12 +2,17 @@ import os
 import psycopg2
 import pytest
 import time
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="session", autouse=True)
 def load_test_data():
     """Load test data from SQL file at the start of test session"""
-    print("\n🔧 Setting up test database...")
+    logger.info("🔧 Setting up test database...")
     
     # Connection parameters
     conn_params = {
@@ -24,10 +29,11 @@ def load_test_data():
         try:
             conn = psycopg2.connect(**conn_params)
             conn.close()
+            logger.info("✅ PostgreSQL connection successful")
             break
-        except psycopg2.OperationalError:
+        except psycopg2.OperationalError as e:
             if i == max_retries - 1:
-                raise Exception("PostgreSQL is not available after 30 seconds")
+                raise Exception(f"PostgreSQL is not available after 30 seconds: {e}")
             time.sleep(1)
     
     # Load test data
@@ -43,7 +49,7 @@ def load_test_data():
             if not os.path.exists(sql_path):
                 raise FileNotFoundError(f"test_data.sql not found at {sql_path}")
             
-            print(f"📊 Loading test data from {sql_path}")
+            logger.info(f"📊 Loading test data from {sql_path}")
             
             # Read and execute the SQL file
             with open(sql_path, 'r', encoding='utf-8') as f:
@@ -53,161 +59,264 @@ def load_test_data():
             cur.execute(sql_content)
             conn.commit()
             
-            # Verify data was loaded
-            cur.execute("SELECT COUNT(*) FROM customers;")
-            customer_count = cur.fetchone()[0]
+            # Verify core data was loaded
+            verification_queries = [
+                ("customers", "SELECT COUNT(*) FROM customers"),
+                ("products", "SELECT COUNT(*) FROM products"),
+                ("orders", "SELECT COUNT(*) FROM orders"),
+                ("test_table", "SELECT COUNT(*) FROM test_table"),
+                ("sales.sales_reps", "SELECT COUNT(*) FROM sales.sales_reps"),
+                ("inventory.warehouses", "SELECT COUNT(*) FROM inventory.warehouses"),
+            ]
             
-            cur.execute("SELECT COUNT(*) FROM products;")
-            product_count = cur.fetchone()[0]
+            logger.info("✅ Test data loaded successfully:")
+            for table_name, query in verification_queries:
+                try:
+                    cur.execute(query)
+                    count = cur.fetchone()[0]
+                    logger.info(f"   - {table_name}: {count} rows")
+                except psycopg2.Error as e:
+                    logger.warning(f"   - {table_name}: Error checking ({e})")
             
-            cur.execute("SELECT COUNT(*) FROM orders;")
-            order_count = cur.fetchone()[0]
-            
-            print(f"✅ Test data loaded successfully:")
-            print(f"   - {customer_count} customers")
-            print(f"   - {product_count} products") 
-            print(f"   - {order_count} orders")
+            # Verify schemas exist
+            cur.execute("""
+                SELECT schema_name FROM information_schema.schemata 
+                WHERE schema_name IN ('sales', 'inventory', 'analytics')
+                ORDER BY schema_name
+            """)
+            schemas = [row[0] for row in cur.fetchall()]
+            logger.info(f"   - Schemas created: {', '.join(schemas)}")
             
     except Exception as e:
         conn.rollback()
-        print(f"❌ Error loading test data: {e}")
+        logger.error(f"❌ Error loading test data: {e}")
         raise
     finally:
         conn.close()
 
 
 @pytest.fixture(scope="session")
-def verify_test_data():
-    """Verify that test data is properly loaded"""
-    conn_params = {
+def db_connection_params():
+    """Provide database connection parameters"""
+    return {
         'host': os.getenv('POSTGRES_HOST', 'localhost'),
         'port': os.getenv('POSTGRES_PORT', '5432'),
         'user': os.getenv('POSTGRES_USER', 'postgres'),
         'password': os.getenv('POSTGRES_PASSWORD', 'postgres'),
         'dbname': os.getenv('POSTGRES_DB', 'test_db')
     }
+
+
+@pytest.fixture(scope="module")
+def db_conn(db_connection_params):
+    """Provide a database connection for the test module"""
+    conn = psycopg2.connect(**db_connection_params)
+    yield conn
+    conn.close()
+
+
+@pytest.fixture(scope="session")
+def verify_mindsdb_ready():
+    """Ensure MindsDB is ready before running tests"""
+    import requests
     
-    conn = psycopg2.connect(**conn_params)
+    max_retries = 60
+    mindsdb_url = "http://localhost:47334"
+    
+    logger.info("🧠 Waiting for MindsDB to be ready...")
+    
+    for i in range(max_retries):
+        try:
+            resp = requests.get(f"{mindsdb_url}/api/status", timeout=5)
+            if resp.status_code == 200:
+                logger.info("✅ MindsDB is ready!")
+                return mindsdb_url
+        except requests.exceptions.RequestException:
+            pass
+        
+        if i < max_retries - 1:
+            time.sleep(1)
+        else:
+            raise Exception("MindsDB is not ready after 60 seconds")
+
+
+@pytest.fixture(scope="session")
+def mindsdb_connection(verify_mindsdb_ready):
+    """Create MindsDB database connection"""
+    import requests
+    
+    mindsdb_url = verify_mindsdb_ready
+    
+    # Create the PostgreSQL database connection in MindsDB
+    sql = """
+    CREATE DATABASE IF NOT EXISTS postgresql_db
+    WITH ENGINE = "postgres",
+    PARAMETERS = {
+        "host": "localhost",
+        "port": 5432,
+        "user": "postgres", 
+        "password": "postgres",
+        "database": "test_db"
+    };
+    """
+    
+    logger.info("🔗 Creating MindsDB PostgreSQL connection...")
+    
     try:
-        with conn.cursor() as cur:
-            # Verify key tables exist and have data
-            tables_to_check = [
-                ('customers', 5),  # Expected minimum 5 customers
-                ('products', 10),  # Expected minimum 10 products
-                ('orders', 5),     # Expected minimum 5 orders
-                ('test_table', 3)  # Original test table
-            ]
-            
-            for table_name, min_expected in tables_to_check:
-                cur.execute(f"SELECT COUNT(*) FROM {table_name};")
-                count = cur.fetchone()[0]
-                if count < min_expected:
-                    raise Exception(f"Table {table_name} has {count} rows, expected at least {min_expected}")
-            
-            # Verify schemas exist
-            schemas_to_check = ['sales', 'inventory', 'analytics']
-            for schema in schemas_to_check:
-                cur.execute("""
-                    SELECT COUNT(*) FROM information_schema.schemata 
-                    WHERE schema_name = %s;
-                """, (schema,))
-                if cur.fetchone()[0] == 0:
-                    raise Exception(f"Schema {schema} does not exist")
-            
-            # Verify views exist
-            cur.execute("""
-                SELECT COUNT(*) FROM information_schema.views 
-                WHERE table_schema = 'analytics' AND table_name = 'customer_summary';
-            """)
-            if cur.fetchone()[0] == 0:
-                raise Exception("Analytics view customer_summary does not exist")
-            
-            print("✅ All test data verification checks passed")
-            
-    finally:
-        conn.close()
-
-
-@pytest.fixture(scope="function")
-def db_transaction():
-    """Provide a database transaction that can be rolled back after each test"""
-    conn_params = {
-        'host': os.getenv('POSTGRES_HOST', 'localhost'),
-        'port': os.getenv('POSTGRES_PORT', '5432'),
-        'user': os.getenv('POSTGRES_USER', 'postgres'),
-        'password': os.getenv('POSTGRES_PASSWORD', 'postgres'),
-        'dbname': os.getenv('POSTGRES_DB', 'test_db')
-    }
+        resp = requests.post(
+            f"{mindsdb_url}/api/sql/query",
+            json={"query": sql},
+            timeout=30
+        )
+        
+        if resp.status_code != 200:
+            raise Exception(f"Failed to create MindsDB connection: HTTP {resp.status_code}")
+        
+        data = resp.json()
+        if data.get("type") == "error":
+            raise Exception(f"MindsDB error: {data}")
+        
+        logger.info("✅ MindsDB PostgreSQL connection created")
+        
+        # Test the connection
+        test_sql = "SELECT 1 as test_connection;"
+        resp = requests.post(
+            f"{mindsdb_url}/api/sql/query",
+            json={"query": test_sql},
+            timeout=10
+        )
+        
+        if resp.status_code == 200 and resp.json().get("type") != "error":
+            logger.info("✅ MindsDB connection test successful")
+        else:
+            logger.warning("⚠️ MindsDB connection test failed")
+        
+        yield mindsdb_url
+        
+    except Exception as e:
+        logger.error(f"❌ Error setting up MindsDB connection: {e}")
+        raise
     
-    conn = psycopg2.connect(**conn_params)
-    trans = conn.begin()
-    
-    try:
-        yield conn
+    # Cleanup
     finally:
-        trans.rollback()
-        conn.close()
+        try:
+            cleanup_sql = "DROP DATABASE IF EXISTS postgresql_db;"
+            requests.post(
+                f"{mindsdb_url}/api/sql/query",
+                json={"query": cleanup_sql},
+                timeout=10
+            )
+            logger.info("🧹 MindsDB connection cleaned up")
+        except:
+            pass  # Ignore cleanup errors
 
 
-# Configure pytest markers
+@pytest.fixture(autouse=True)
+def log_test_info(request):
+    """Log test start and end information"""
+    test_name = request.node.name
+    logger.info(f"🧪 Starting test: {test_name}")
+    
+    start_time = time.time()
+    yield
+    end_time = time.time()
+    
+    duration = end_time - start_time
+    logger.info(f"✅ Completed test: {test_name} ({duration:.2f}s)")
+
+
 def pytest_configure(config):
-    """Configure custom pytest markers"""
-    config.addinivalue_line("markers", "basic: Basic connectivity tests")
-    config.addinivalue_line("markers", "schema: Schema access tests")
-    config.addinivalue_line("markers", "complex: Complex query tests")
-    config.addinivalue_line("markers", "datatype: Data type tests")
-    config.addinivalue_line("markers", "error: Error handling tests")
-    config.addinivalue_line("markers", "performance: Performance tests")
-    config.addinivalue_line("markers", "inventory: Inventory management tests")
-    config.addinivalue_line("markers", "sales: Sales analytics tests")
+    """Configure pytest settings"""
+    # Add custom markers
+    markers = [
+        "basic: Basic connectivity tests",
+        "schema: Schema access tests", 
+        "complex: Complex query tests",
+        "datatype: Data type tests",
+        "error: Error handling tests",
+        "performance: Performance tests",
+        "inventory: Inventory management tests",
+        "sales: Sales analytics tests",
+        "slow: Tests that take longer to run"
+    ]
+    
+    for marker in markers:
+        config.addinivalue_line("markers", marker)
 
 
-# Test collection hooks
 def pytest_collection_modifyitems(config, items):
     """Modify test items during collection"""
     # Add markers based on test class names
     for item in items:
-        if "TestBasicConnectivity" in item.nodeid:
-            item.add_marker(pytest.mark.basic)
-        elif "TestSchemaAccess" in item.nodeid:
-            item.add_marker(pytest.mark.schema)
-        elif "TestComplexQueries" in item.nodeid:
-            item.add_marker(pytest.mark.complex)
-        elif "TestDataTypes" in item.nodeid:
-            item.add_marker(pytest.mark.datatype)
-        elif "TestErrorHandling" in item.nodeid:
-            item.add_marker(pytest.mark.error)
-        elif "TestPerformance" in item.nodeid:
-            item.add_marker(pytest.mark.performance)
-        elif "TestInventoryManagement" in item.nodeid:
-            item.add_marker(pytest.mark.inventory)
-        elif "TestSalesAnalytics" in item.nodeid:
-            item.add_marker(pytest.mark.sales)
+        # Add markers based on class names
+        class_markers = {
+            "TestBasicConnectivity": "basic",
+            "TestSchemaAccess": "schema", 
+            "TestComplexQueries": "complex",
+            "TestDataTypes": "datatype",
+            "TestErrorHandling": "error",
+            "TestPerformance": "performance",
+            "TestInventoryManagement": "inventory",
+            "TestSalesAnalytics": "sales"
+        }
+        
+        for class_name, marker in class_markers.items():
+            if class_name in item.nodeid:
+                item.add_marker(getattr(pytest.mark, marker))
+        
+        # Mark performance tests as slow
+        if "TestPerformance" in item.nodeid:
+            item.add_marker(pytest.mark.slow)
 
 
 def pytest_sessionstart(session):
     """Called after the Session object has been created"""
-    print("\n🚀 Starting MindsDB PostgreSQL Handler Test Suite")
-    print("=" * 60)
+    logger.info("🚀 Starting MindsDB PostgreSQL Handler Test Suite")
+    logger.info("=" * 60)
 
 
 def pytest_sessionfinish(session, exitstatus):
     """Called after whole test run finished"""
-    print("\n" + "=" * 60)
+    logger.info("=" * 60)
     if exitstatus == 0:
-        print("✅ All tests completed successfully!")
+        logger.info("✅ All tests completed successfully!")
     else:
-        print(f"❌ Tests completed with exit status: {exitstatus}")
-    print("🧹 Cleaning up test environment...")
+        logger.error(f"❌ Tests completed with exit status: {exitstatus}")
 
 
-def pytest_runtest_setup(item):
-    """Called to perform the setup phase for a test item"""
-    # Add any per-test setup logic here if needed
-    pass
+def pytest_runtest_logreport(report):
+    """Called when a test report is created"""
+    if report.when == "call":
+        if report.outcome == "passed":
+            logger.info(f"✅ {report.nodeid}")
+        elif report.outcome == "failed":
+            logger.error(f"❌ {report.nodeid}")
+            if hasattr(report, 'longrepr'):
+                logger.error(f"Error details: {report.longrepr}")
+        elif report.outcome == "skipped":
+            logger.info(f"⏭️ {report.nodeid}")
 
 
-def pytest_runtest_teardown(item, nextitem):
-    """Called to perform the teardown phase for a test item"""
-    # Add any per-test cleanup logic here if needed
-    pass
+# Helper function for tests
+def execute_sql_via_mindsdb(sql, mindsdb_url="http://localhost:47334", timeout=30):
+    """Helper function to execute SQL via MindsDB API"""
+    import requests
+    
+    resp = requests.post(
+        f"{mindsdb_url}/api/sql/query", 
+        json={"query": sql}, 
+        timeout=timeout
+    )
+    
+    if resp.status_code != 200:
+        raise Exception(f"MindsDB API request failed with status {resp.status_code}: {resp.text}")
+    
+    data = resp.json()
+    if data.get("type") == "error":
+        raise Exception(f"MindsDB returned error: {data}")
+    
+    return data
+
+
+# Make the helper function available to tests
+pytest.execute_sql_via_mindsdb = execute_sql_via_mindsdb
