@@ -48,3 +48,15 @@ def test_create_postgresql_db_via_http():
     assert resp.status_code == 200
     data = resp.json()
     assert data.get("type") != "error", f"Error: {data}"
+    select_sql = '''
+    SELECT * FROM postgresql_db;
+    '''
+    
+    resp = requests.post(
+        "http://localhost:47334/api/sql/query",
+        json={"query": select_sql}
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    print(data)
+    assert data.get("type") != "error", f"Error: {data}"
