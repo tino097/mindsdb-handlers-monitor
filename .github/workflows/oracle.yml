@@ -1,0 +1,109 @@
+name: MindsDB Oracle Monitor CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      mindsdb_ref:
+        description: "Git ref (branch/tag/sha) of MindsDB to test"
+        required: false
+        default: "stable"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      oracle:
+        # Using gvenzl/oracle-xe is a common lightweight Oracle XE image
+        image: gvenzl/oracle-xe:21-slim
+        env:
+          ORACLE_PASSWORD: oracle
+          APP_USER: test_user
+          APP_USER_PASSWORD: test_password
+        ports:
+          - 1521:1521
+        options: >-
+          --health-cmd "[ -f /opt/oracle/status/uptime ]" \
+          --health-interval 15s \
+          --health-timeout 5s \
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies (with MindsDB from source)
+        env:
+          MINDSDB_REF: ${{ github.event.inputs.mindsdb_ref || 'stable' }}
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install cx-Oracle oracledb
+          echo "Cloning MindsDB at ref: ${MINDSDB_REF}"
+          git clone https://github.com/mindsdb/mindsdb.git
+          cd mindsdb
+          git fetch --all --tags
+          if [ "${MINDSDB_REF}" != "stable" ]; then
+            git checkout "${MINDSDB_REF}" || { echo "Ref ${MINDSDB_REF} not found" >&2; exit 1; }
+          fi
+          pip install -e .[all]
+          cd ..
+
+      - name: Wait for Oracle
+        run: |
+          echo "Waiting for Oracle to become available..."
+          for i in {1..60}; do
+            if echo 'SELECT 1 FROM dual;' | sqlplus -s system/oracle@//localhost:1521/XE > /dev/null 2>&1; then
+              echo "Oracle is ready!"
+              break
+            fi
+            if [ $i -eq 60 ]; then
+              echo "Oracle failed to become ready in time" >&2
+              docker logs $(docker ps -q --filter "ancestor=gvenzl/oracle-xe:21-slim") || true
+              exit 1
+            fi
+            sleep 5
+          done
+
+      - name: Start MindsDB
+        run: |
+          python -m mindsdb --api http --verbose &
+          MINDSDB_PID=$!
+          echo "MINDSDB_PID=$MINDSDB_PID" >> $GITHUB_ENV
+          echo "Waiting for MindsDB to start..."
+          for i in {1..60}; do
+            if curl -f http://localhost:47334/api/status 2>/dev/null; then
+              echo "MindsDB is ready!"
+              break
+            fi
+            if [ $i -eq 60 ]; then
+              echo "MindsDB failed to start within 60 seconds"
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Run tests
+        env:
+          ORACLE_HOST: localhost
+          ORACLE_PORT: 1521
+          ORACLE_SERVICE: XE
+          ORACLE_USER: system
+          ORACLE_PASSWORD: oracle
+          MINDSDB_API_URL: http://localhost:47334
+        run: |
+          pytest -v --tb=short -k oracle
+
+      - name: Stop MindsDB
+        if: always()
+        run: |
+          if [ ! -z "$MINDSDB_PID" ]; then
+            kill $MINDSDB_PID || true
+          fi
