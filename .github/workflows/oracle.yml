@@ -2,9 +2,9 @@ name: MindsDB with Oracle XE Monitor CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch: {}
 
 jobs:
@@ -32,21 +32,20 @@ jobs:
       - name: Wait for oracle-xe health
         run: |
           set -euo pipefail
-          for i in $(seq 1 180); do
-            status=$(docker inspect -f '{{.State.Health.Status}}' oracle-xe || echo "unknown")
-            echo "[$i] oracle-xe health: $status"
-            if [ "$status" = "healthy" ]; then
-              echo "✅ Oracle is healthy"
+          for i in $(seq 1 120); do
+            echo "[$i] sqlplus probe..."
+            if docker exec oracle-xe bash -lc "echo 'select 1 from dual;' | sqlplus -s system/OraclePassword123@localhost:1521/XEPDB1 | grep -q '^1$'"; then
+              echo "✅ sqlplus probe OK (XEPDB1)"
               exit 0
             fi
-            if [ "$status" = "unhealthy" ]; then
-              echo "❌ Oracle reports unhealthy" >&2
-              docker logs oracle-xe | tail -n 400 || true
+            if docker exec oracle-xe bash -lc "echo 'select 1 from dual;' | sqlplus -s system/OraclePassword123@localhost:1521/XE | grep -q '^1$'"; then
+              echo "✅ sqlplus probe OK (XE)"
+              exit 0
             fi
             sleep 5
           done
-          echo "❌ Oracle did not become healthy in time" >&2
-          docker logs oracle-xe | tail -n 400 || true
+          echo "❌ sqlplus probe failed within timeout"
+          docker logs oracle-xe | tail -n 200 || true
           exit 1
 
       # --- MINDSDB ---
