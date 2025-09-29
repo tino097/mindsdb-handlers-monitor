@@ -1,4 +1,4 @@
-name: Infra: Oracle + MindsDB
+name: MindsDB with Oracle XE Monitor CI
 
 on:
   push:
