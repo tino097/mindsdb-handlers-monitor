@@ -1,98 +1,68 @@
 name: MindsDB with Oracle XE Monitor CI
 
 on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
+  push: { branches: ["main"] }
+  pull_request: { branches: ["main"] }
   workflow_dispatch: {}
 
 jobs:
   infra:
     runs-on: ubuntu-latest
+    services:
+      oracle:
+        image: gvenzl/oracle-xe:21-slim
+        env:
+          ORACLE_PASSWORD: OraclePassword123
+          ORACLE_CHARACTERSET: AL32UTF8
+        ports:
+          - 1521:1521
+          - 5500:5500
+        options: >-
+          --health-cmd "bash -lc \"echo 'select 1 from dual;' |
+          sqlplus -s system/OraclePassword123@localhost:1521/XEPDB1 |
+          grep -q '^1$'\""
+          --health-interval 10s --health-timeout 5s --health-retries 60
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # --- ORACLE: build local image (FROM gvenzl/oracle-xe:21-slim) ---
-      - name: Build custom Oracle XE image
-        run: |
-          docker build -t custom-oracle-xe:21 .ci/oracle
-
-      - name: Run Oracle XE container
-        run: |
-          docker run -d --name oracle-xe \
-            -p 1521:1521 -p 5500:5500 \
-            -e ORACLE_PASSWORD=OraclePassword123 \
-            -e ORACLE_CHARACTERSET=AL32UTF8 \
-            custom-oracle-xe:21
-
-      # --- Wait using Docker healthcheck (no Python) ---
-      - name: Wait for oracle-xe health
+      - name: Wait for oracle health
         run: |
           set -euo pipefail
-          for i in $(seq 1 120); do
-            echo "[$i] sqlplus probe..."
-            if docker exec oracle-xe bash -lc "echo 'select 1 from dual;' | sqlplus -s system/OraclePassword123@localhost:1521/XEPDB1 | grep -q '^1$'"; then
-              echo "✅ sqlplus probe OK (XEPDB1)"
-              exit 0
-            fi
-            if docker exec oracle-xe bash -lc "echo 'select 1 from dual;' | sqlplus -s system/OraclePassword123@localhost:1521/XE | grep -q '^1$'"; then
-              echo "✅ sqlplus probe OK (XE)"
-              exit 0
+          ID="${{ job.services.oracle.id }}"
+          for i in $(seq 1 180); do
+            status=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$ID" || echo "none")
+            echo "[$i] oracle health: $status"
+            if [ "$status" = "healthy" ]; then
+              echo "✅ Oracle healthy"
+              break
             fi
             sleep 5
           done
-          echo "❌ sqlplus probe failed within timeout"
-          docker logs oracle-xe | tail -n 200 || true
-          exit 1
+          test "$(docker inspect -f '{{.State.Health.Status}}' "$ID")" = "healthy" || (docker logs "$ID" | tail -n 200; exit 1)
 
-      # --- MINDSDB ---
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-
-      - name: Install MindsDB
+      - name: Install & start MindsDB
         run: |
           python -m pip install --upgrade pip
-          # Pin or change extras as you wish; [all] is heavy but convenient
           pip install "mindsdb[all]"
-
-      - name: Start MindsDB HTTP API
-        run: |
-          set -euo pipefail
           python -m mindsdb --api http --verbose &
           echo "MINDSDB_PID=$!" >> $GITHUB_ENV
-          echo "Waiting for MindsDB to start..."
           for i in $(seq 1 180); do
             echo "[$i] Checking MindsDB..."
-            if curl -sf http://localhost:47334/api/status >/dev/null; then
+            if curl -sf http://127.0.0.1:47334/api/status >/dev/null; then
               echo "✅ MindsDB is ready!"
               exit 0
             fi
             sleep 1
           done
-          echo "❌ MindsDB failed to start within 180 seconds" >&2
-          exit 1
+          echo "❌ MindsDB failed to start"; exit 1
 
-      # --- VERIFICATION ONLY (no tests yet) ---
       - name: Verify services
         run: |
-          echo "== Docker ps =="
           docker ps
-          echo "== Oracle health =="
-          docker inspect -f '{{.State.Health.Status}}' oracle-xe || true
-          echo "== MindsDB status =="
-          curl -sf http://localhost:47334/api/status | tee mindsdb_status.json || true
+          curl -sf http://127.0.0.1:47334/api/status | tee mindsdb_status.json || true
 
-      # --- CLEANUP ---
-      - name: Logs & cleanup
+      - name: Cleanup
         if: always()
         run: |
-          echo "=== Oracle logs (tail) ==="
-          docker logs oracle-xe | tail -n 400 || true
           if [ -n "${MINDSDB_PID:-}" ]; then kill ${MINDSDB_PID} || true; fi
-          docker rm -f oracle-xe || true
