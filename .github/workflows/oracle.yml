@@ -54,7 +54,34 @@ jobs:
           cd ..
       - name: Wait for Oracle
         run: |
-          python -c "import time,sys,oracledb;u='system';p='oracle';dsn='localhost:1521/XE';dl=time.time()+600;a=0\nwhile time.time()<dl:\n a+=1\n try:\n  with oracledb.connect(user=u,password=p,dsn=dsn,timeout=5) as c:\n   with c.cursor() as cur: cur.execute('SELECT 1 FROM dual');print(f'Oracle ready after {a} attempts');sys.exit(0)\n except Exception as e:\n  (a%10==0) and print(f'Attempt {a}: waiting {e}'); time.sleep(5)\nprint('Oracle failed to become ready in time',file=sys.stderr);sys.exit(1)"
+          cat > wait_oracle.py <<'PYEOF'
+          import time, sys
+          import oracledb
+
+          USER = 'system'
+          PASSWORD = 'oracle'
+          DSN = 'localhost:1521/XE'
+          MAX_SECONDS = 600
+          SLEEP = 5
+
+          deadline = time.time() + MAX_SECONDS
+          attempt = 0
+          while time.time() < deadline:
+              attempt += 1
+              try:
+                  with oracledb.connect(user=USER, password=PASSWORD, dsn=DSN, timeout=5) as conn:
+                      with conn.cursor() as cur:
+                          cur.execute('SELECT 1 FROM dual')
+                          print(f'Oracle ready after {attempt} attempts')
+                          sys.exit(0)
+              except Exception as e:  # noqa: BLE001
+                  if attempt % 10 == 0:
+                      print(f'Attempt {attempt}: still waiting ({e})')
+                  time.sleep(SLEEP)
+          print('Oracle failed to become ready in time', file=sys.stderr)
+          sys.exit(1)
+          PYEOF
+          python wait_oracle.py
 
       - name: Start MindsDB
         run: |
