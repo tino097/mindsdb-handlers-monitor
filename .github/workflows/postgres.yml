@@ -1,0 +1,87 @@
+name: MindsDB PostgreSQL Monitor CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" 
+          --health-interval 10s 
+          --health-timeout 5s 
+          --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # Install MindsDB if not in requirements.txt
+          pip install mindsdb psycopg2-binary
+      
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do 
+            echo "Waiting for PostgreSQL..."
+            sleep 1
+          done
+          echo "PostgreSQL is ready!"
+      
+      - name: Start MindsDB
+        run: |
+          # Start MindsDB in background
+          python -m mindsdb --api http --verbose &
+          MINDSDB_PID=$!
+          echo "MINDSDB_PID=$MINDSDB_PID" >> $GITHUB_ENV
+          
+          # Wait for MindsDB to be ready
+          echo "Waiting for MindsDB to start..."
+          for i in {1..60}; do
+            if curl -f http://localhost:47334/api/status 2>/dev/null; then
+              echo "MindsDB is ready!"
+              break
+            fi
+            if [ $i -eq 60 ]; then
+              echo "MindsDB failed to start within 60 seconds"
+              exit 1
+            fi
+            sleep 1
+          done
+        
+      - name: Run tests
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+          MINDSDB_API_URL: http://localhost:47334
+        run: |
+          pytest -v --tb=short
+      
+      - name: Stop MindsDB
+        if: always()
+        run: |
+          if [ ! -z "$MINDSDB_PID" ]; then
+            kill $MINDSDB_PID || true
+          fi
