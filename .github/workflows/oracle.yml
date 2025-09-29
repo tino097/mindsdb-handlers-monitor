@@ -26,10 +26,7 @@ jobs:
         ports:
           - 1521:1521
         options: >-
-          --health-cmd "[ -f /opt/oracle/status/uptime ]" \
-          --health-interval 15s \
-          --health-timeout 5s \
-          --health-retries 20
+          --health-cmd "[ -f /opt/oracle/status/uptime ]" --health-interval 15s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@v4
 
