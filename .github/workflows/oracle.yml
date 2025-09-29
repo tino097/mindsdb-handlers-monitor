@@ -5,6 +5,7 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch: {}
 
 jobs:
   infra:
@@ -14,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # --- ORACLE ---
+      # --- ORACLE: build local image (FROM gvenzl/oracle-xe:21-slim) ---
       - name: Build custom Oracle XE image
         run: |
           docker build -t custom-oracle-xe:21 .ci/oracle
@@ -27,83 +28,66 @@ jobs:
             -e ORACLE_CHARACTERSET=AL32UTF8 \
             custom-oracle-xe:21
 
-      # Python for wait scripts
-      - name: Setup Python
+      # --- Wait using Docker healthcheck (no Python) ---
+      - name: Wait for oracle-xe health
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 180); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' oracle-xe || echo "unknown")
+            echo "[$i] oracle-xe health: $status"
+            if [ "$status" = "healthy" ]; then
+              echo "✅ Oracle is healthy"
+              exit 0
+            fi
+            if [ "$status" = "unhealthy" ]; then
+              echo "❌ Oracle reports unhealthy" >&2
+              docker logs oracle-xe | tail -n 400 || true
+            fi
+            sleep 5
+          done
+          echo "❌ Oracle did not become healthy in time" >&2
+          docker logs oracle-xe | tail -n 400 || true
+          exit 1
+
+      # --- MINDSDB ---
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Install python-oracledb for readiness checks
-        run: |
-          python -m pip install --upgrade pip
-          pip install oracledb
-
-      - name: Wait for Oracle to be ready
-        id: wait_oracle
-        run: |
-          python - <<'PY'
-          import time, sys
-          import oracledb
-
-          USER = 'system'
-          PASSWORD = 'OraclePassword123'
-          DSNS = ['localhost:1521/XEPDB1', 'localhost:1521/XE']  # try both
-          MAX_SECONDS = 600
-          SLEEP = 5
-
-          deadline = time.time() + MAX_SECONDS
-          attempt = 0
-          while time.time() < deadline:
-              attempt += 1
-              for dsn in DSNS:
-                  try:
-                      with oracledb.connect(user=USER, password=PASSWORD, dsn=dsn, timeout=5) as conn:
-                          with conn.cursor() as cur:
-                              cur.execute('SELECT 1 FROM dual')
-                              print(f'Oracle ready on DSN {dsn} after {attempt} attempts')
-                              # export DSN for later steps
-                              with open(os.environ['GITHUB_OUTPUT'], 'w') as fh:
-                                  fh.write(f'dsn={dsn}\n')
-                              sys.exit(0)
-                  except Exception as e:
-                      if attempt % 10 == 0:
-                          print(f'Attempt {attempt}: still waiting ({e})')
-              time.sleep(SLEEP)
-
-          print('Oracle failed to become ready in time', file=sys.stderr)
-          sys.exit(1)
-          PY
-
-      # --- MINDSDB ---
       - name: Install MindsDB
         run: |
-          # You can pin a version if you prefer: pip install "mindsdb[all]==x.y.z"
+          python -m pip install --upgrade pip
+          # Pin or change extras as you wish; [all] is heavy but convenient
           pip install "mindsdb[all]"
 
       - name: Start MindsDB HTTP API
         run: |
+          set -euo pipefail
           python -m mindsdb --api http --verbose &
           echo "MINDSDB_PID=$!" >> $GITHUB_ENV
           echo "Waiting for MindsDB to start..."
           for i in $(seq 1 180); do
+            echo "[$i] Checking MindsDB..."
             if curl -sf http://localhost:47334/api/status >/dev/null; then
-              echo "MindsDB is ready!"
+              echo "✅ MindsDB is ready!"
               exit 0
             fi
             sleep 1
           done
-          echo "MindsDB failed to start within 180 seconds"; exit 1
+          echo "❌ MindsDB failed to start within 180 seconds" >&2
+          exit 1
 
       # --- VERIFICATION ONLY (no tests yet) ---
-      - name: Verify both services are up
-        env:
-          ORACLE_DSN: ${{ steps.wait_oracle.outputs.dsn }}
+      - name: Verify services
         run: |
-          echo "Oracle DSN: ${ORACLE_DSN}"
-          echo "Checking MindsDB /api/status..."
-          curl -sf http://localhost:47334/api/status | tee mindsdb_status.json
-          echo "Done."
+          echo "== Docker ps =="
+          docker ps
+          echo "== Oracle health =="
+          docker inspect -f '{{.State.Health.Status}}' oracle-xe || true
+          echo "== MindsDB status =="
+          curl -sf http://localhost:47334/api/status | tee mindsdb_status.json || true
 
       # --- CLEANUP ---
       - name: Logs & cleanup
@@ -111,7 +95,5 @@ jobs:
         run: |
           echo "=== Oracle logs (tail) ==="
           docker logs oracle-xe | tail -n 400 || true
-          if [ -n "${MINDSDB_PID:-}" ]; then
-            kill ${MINDSDB_PID} || true
-          fi
+          if [ -n "${MINDSDB_PID:-}" ]; then kill ${MINDSDB_PID} || true; fi
           docker rm -f oracle-xe || true
