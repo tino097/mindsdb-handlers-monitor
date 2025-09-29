@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       oracle:
-        image: gvenzl/oracle-xe:21-slim
+        image: gvenzl/oracle-xe:21
         env:
           ORACLE_PASSWORD: OraclePassword123
           ORACLE_CHARACTERSET: AL32UTF8
@@ -18,10 +18,8 @@ jobs:
           - 1521:1521
           - 5500:5500
         options: >-
-          --health-cmd "bash -lc \"echo 'select 1 from dual;' |
-          sqlplus -s system/OraclePassword123@localhost:1521/XEPDB1 |
-          grep -q '^1$'\""
-          --health-interval 10s --health-timeout 5s --health-retries 60
+          --health-cmd "bash -lc 'echo > /dev/tcp/127.0.0.1/1521'"
+          --health-interval 10s --health-timeout 3s --health-retries 120
 
     steps:
       - uses: actions/checkout@v4
