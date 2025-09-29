@@ -115,5 +115,3 @@ jobs:
             kill ${MINDSDB_PID} || true
           fi
           docker rm -f oracle-xe || true
-		  echo "Done."
-
