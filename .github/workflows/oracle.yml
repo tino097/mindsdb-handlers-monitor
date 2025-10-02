@@ -276,6 +276,27 @@ jobs:
           docker ps
           curl -sf http://127.0.0.1:47334/api/status | tee mindsdb_status.json || true
 
+      - name: Run tests
+        env:
+          ORACLE_HOST: localhost
+          ORACLE_PORT: 1521
+          ORACLE_USER: sampleuser
+          ORACLE_PASSWORD: SamplePass123
+          ORACLE_DB: XEPDB1
+          MINDSDB_API_URL: http://localhost:47334
+        run: |
+          cd oracle/tests
+          pytest -v --tb=short
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tpch-test-results
+          path: |
+            oracle/tests/tpch_results.json
+            oracle/tests/*.log
+
       - name: Cleanup
         if: always()
         run: |
