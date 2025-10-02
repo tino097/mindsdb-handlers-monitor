@@ -39,21 +39,300 @@ jobs:
           done
           test "$(docker inspect -f '{{.State.Health.Status}}' "$ID")" = "healthy" || (docker logs "$ID" | tail -n 200; exit 1)
 
-      - name: Install & start MindsDB
+      - name: Setup Oracle user and schema
         run: |
-          python -m pip install --upgrade pip
-          pip install "mindsdb[all]"
-          python -m mindsdb --api http --verbose &
-          echo "MINDSDB_PID=$!" >> $GITHUB_ENV
-          for i in $(seq 1 180); do
-            echo "[$i] Checking MindsDB..."
-            if curl -sf http://127.0.0.1:47334/api/status >/dev/null; then
-              echo "✅ MindsDB is ready!"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "❌ MindsDB failed to start"; exit 1
+          docker ps
+          echo "🔧 Creating sampleuser and setting up schema..."
+
+          # Create user
+          docker exec -i ${{ job.services.oracle.id }} sqlplus -S system/OraclePassword123@//localhost:1521/XEPDB1 < oracle/data/01-setup-user.sql
+
+          echo "✅ User created successfully"
+
+      - name: Create TPC-H tables
+        run: |
+          echo "📊 Creating TPC-H tables..."
+          docker exec -i ${{ job.services.oracle.id }} sqlplus -S sampleuser/SamplePass123@//localhost:1521/XEPDB1 <<'EOF'
+          -- REGION table
+          CREATE TABLE REGION (
+            R_REGIONKEY NUMBER NOT NULL,
+            R_NAME VARCHAR2(25) NOT NULL,
+            R_COMMENT VARCHAR2(152),
+            PRIMARY KEY (R_REGIONKEY)
+          );
+
+          -- NATION table
+          CREATE TABLE NATION (
+            N_NATIONKEY NUMBER NOT NULL,
+            N_NAME VARCHAR2(25) NOT NULL,
+            N_REGIONKEY NUMBER NOT NULL,
+            N_COMMENT VARCHAR2(152),
+            PRIMARY KEY (N_NATIONKEY)
+          );
+
+          -- SUPPLIER table
+          CREATE TABLE SUPPLIER (
+            S_SUPPKEY NUMBER NOT NULL,
+            S_NAME VARCHAR2(25) NOT NULL,
+            S_ADDRESS VARCHAR2(40) NOT NULL,
+            S_NATIONKEY NUMBER NOT NULL,
+            S_PHONE VARCHAR2(15) NOT NULL,
+            S_ACCTBAL NUMBER(15,2) NOT NULL,
+            S_COMMENT VARCHAR2(101),
+            PRIMARY KEY (S_SUPPKEY)
+          );
+
+          -- PART table
+          CREATE TABLE PART (
+            P_PARTKEY NUMBER NOT NULL,
+            P_NAME VARCHAR2(55) NOT NULL,
+            P_MFGR VARCHAR2(25) NOT NULL,
+            P_BRAND VARCHAR2(10) NOT NULL,
+            P_TYPE VARCHAR2(25) NOT NULL,
+            P_SIZE NUMBER NOT NULL,
+            P_CONTAINER VARCHAR2(10) NOT NULL,
+            P_RETAILPRICE NUMBER(15,2) NOT NULL,
+            P_COMMENT VARCHAR2(23),
+            PRIMARY KEY (P_PARTKEY)
+          );
+
+          -- PARTSUPP table
+          CREATE TABLE PARTSUPP (
+            PS_PARTKEY NUMBER NOT NULL,
+            PS_SUPPKEY NUMBER NOT NULL,
+            PS_AVAILQTY NUMBER NOT NULL,
+            PS_SUPPLYCOST NUMBER(15,2) NOT NULL,
+            PS_COMMENT VARCHAR2(199),
+            PRIMARY KEY (PS_PARTKEY, PS_SUPPKEY)
+          );
+
+          -- CUSTOMER table
+          CREATE TABLE CUSTOMER (
+            C_CUSTKEY NUMBER NOT NULL,
+            C_NAME VARCHAR2(25) NOT NULL,
+            C_ADDRESS VARCHAR2(40) NOT NULL,
+            C_NATIONKEY NUMBER NOT NULL,
+            C_PHONE VARCHAR2(15) NOT NULL,
+            C_ACCTBAL NUMBER(15,2) NOT NULL,
+            C_MKTSEGMENT VARCHAR2(10) NOT NULL,
+            C_COMMENT VARCHAR2(117),
+            PRIMARY KEY (C_CUSTKEY)
+          );
+
+          -- ORDERS table
+          CREATE TABLE ORDERS (
+            O_ORDERKEY NUMBER NOT NULL,
+            O_CUSTKEY NUMBER NOT NULL,
+            O_ORDERSTATUS VARCHAR2(1) NOT NULL,
+            O_TOTALPRICE NUMBER(15,2) NOT NULL,
+            O_ORDERDATE DATE NOT NULL,
+            O_ORDERPRIORITY VARCHAR2(15) NOT NULL,
+            O_CLERK VARCHAR2(15) NOT NULL,
+            O_SHIPPRIORITY NUMBER NOT NULL,
+            O_COMMENT VARCHAR2(79),
+            PRIMARY KEY (O_ORDERKEY)
+          );
+
+          -- LINEITEM table
+          CREATE TABLE LINEITEM (
+            L_ORDERKEY NUMBER NOT NULL,
+            L_PARTKEY NUMBER NOT NULL,
+            L_SUPPKEY NUMBER NOT NULL,
+            L_LINENUMBER NUMBER NOT NULL,
+            L_QUANTITY NUMBER(15,2) NOT NULL,
+            L_EXTENDEDPRICE NUMBER(15,2) NOT NULL,
+            L_DISCOUNT NUMBER(15,2) NOT NULL,
+            L_TAX NUMBER(15,2) NOT NULL,
+            L_RETURNFLAG VARCHAR2(1) NOT NULL,
+            L_LINESTATUS VARCHAR2(1) NOT NULL,
+            L_SHIPDATE DATE NOT NULL,
+            L_COMMITDATE DATE NOT NULL,
+            L_RECEIPTDATE DATE NOT NULL,
+            L_SHIPINSTRUCT VARCHAR2(25) NOT NULL,
+            L_SHIPMODE VARCHAR2(10) NOT NULL,
+            L_COMMENT VARCHAR2(44),
+            PRIMARY KEY (L_ORDERKEY, L_LINENUMBER)
+          );
+
+          EXIT;
+          EOF
+
+          echo "✅ Tables created successfully"
+
+      - name: Copy TPC-H data files to container
+        run: |
+          echo "📦 Copying .tbl files to Oracle container..."
+          docker cp oracle/data/tables/. ${{ job.services.oracle.id }}:/tmp/tpch/
+          docker exec ${{ job.services.oracle.id }} ls -lh /tmp/tpch/
+          echo "✅ Files copied"
+
+      - name: Load TPC-H data using SQL*Loader
+        run: |
+          echo "📥 Loading TPC-H data..."
+
+          # Create SQL*Loader control files in the container
+          docker exec ${{ job.services.oracle.id }} bash -c 'cat > /tmp/tpch/region.ctl << "EOF"
+          LOAD DATA
+          INFILE '/tmp/tpch/region.tbl'
+          APPEND INTO TABLE REGION
+          FIELDS TERMINATED BY "|"
+          TRAILING NULLCOLS
+          (R_REGIONKEY, R_NAME, R_COMMENT)
+          EOF'
+
+          docker exec ${{ job.services.oracle.id }} bash -c 'cat > /tmp/tpch/nation.ctl << "EOF"
+          LOAD DATA
+          INFILE '/tmp/tpch/nation.tbl'
+          APPEND INTO TABLE NATION
+          FIELDS TERMINATED BY "|"
+          TRAILING NULLCOLS
+          (N_NATIONKEY, N_NAME, N_REGIONKEY, N_COMMENT)
+          EOF'
+
+          docker exec ${{ job.services.oracle.id }} bash -c 'cat > /tmp/tpch/supplier.ctl << "EOF"
+          LOAD DATA
+          INFILE '/tmp/tpch/supplier.tbl'
+          APPEND INTO TABLE SUPPLIER
+          FIELDS TERMINATED BY "|"
+          TRAILING NULLCOLS
+          (S_SUPPKEY, S_NAME, S_ADDRESS, S_NATIONKEY, S_PHONE, S_ACCTBAL, S_COMMENT)
+          EOF'
+
+          docker exec ${{ job.services.oracle.id }} bash -c 'cat > /tmp/tpch/part.ctl << "EOF"
+          LOAD DATA
+          INFILE '/tmp/tpch/part.tbl'
+          APPEND INTO TABLE PART
+          FIELDS TERMINATED BY "|"
+          TRAILING NULLCOLS
+          (P_PARTKEY, P_NAME, P_MFGR, P_BRAND, P_TYPE, P_SIZE, P_CONTAINER, P_RETAILPRICE, P_COMMENT)
+          EOF'
+
+          docker exec ${{ job.services.oracle.id }} bash -c 'cat > /tmp/tpch/partsupp.ctl << "EOF"
+          LOAD DATA
+          INFILE '/tmp/tpch/partsupp.tbl'
+          APPEND INTO TABLE PARTSUPP
+          FIELDS TERMINATED BY "|"
+          TRAILING NULLCOLS
+          (PS_PARTKEY, PS_SUPPKEY, PS_AVAILQTY, PS_SUPPLYCOST, PS_COMMENT)
+          EOF'
+
+          docker exec ${{ job.services.oracle.id }} bash -c 'cat > /tmp/tpch/customer.ctl << "EOF"
+          LOAD DATA
+          INFILE '/tmp/tpch/customer.tbl'
+          APPEND INTO TABLE CUSTOMER
+          FIELDS TERMINATED BY "|"
+          TRAILING NULLCOLS
+          (C_CUSTKEY, C_NAME, C_ADDRESS, C_NATIONKEY, C_PHONE, C_ACCTBAL, C_MKTSEGMENT, C_COMMENT)
+          EOF'
+
+          docker exec ${{ job.services.oracle.id }} bash -c 'cat > /tmp/tpch/orders.ctl << "EOF"
+          LOAD DATA
+          INFILE '/tmp/tpch/orders.tbl'
+          APPEND INTO TABLE ORDERS
+          FIELDS TERMINATED BY "|"
+          TRAILING NULLCOLS
+          (O_ORDERKEY, O_CUSTKEY, O_ORDERSTATUS, O_TOTALPRICE, 
+           O_ORDERDATE DATE "YYYY-MM-DD", O_ORDERPRIORITY, O_CLERK, O_SHIPPRIORITY, O_COMMENT)
+          EOF'
+
+          docker exec ${{ job.services.oracle.id }} bash -c 'cat > /tmp/tpch/lineitem.ctl << "EOF"
+          LOAD DATA
+          INFILE '/tmp/tpch/lineitem.tbl'
+          APPEND INTO TABLE LINEITEM
+          FIELDS TERMINATED BY "|"
+          TRAILING NULLCOLS
+          (L_ORDERKEY, L_PARTKEY, L_SUPPKEY, L_LINENUMBER, L_QUANTITY, L_EXTENDEDPRICE, 
+           L_DISCOUNT, L_TAX, L_RETURNFLAG, L_LINESTATUS, 
+           L_SHIPDATE DATE "YYYY-MM-DD", L_COMMITDATE DATE "YYYY-MM-DD", 
+           L_RECEIPTDATE DATE "YYYY-MM-DD", L_SHIPINSTRUCT, L_SHIPMODE, L_COMMENT)
+          EOF'
+
+          echo "🔄 Loading REGION..."
+          docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/region.ctl log=/tmp/tpch/region.log bad=/tmp/tpch/region.bad silent=feedback
+
+          echo "🔄 Loading NATION..."
+          docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/nation.ctl log=/tmp/tpch/nation.log bad=/tmp/tpch/nation.bad silent=feedback
+
+          echo "🔄 Loading SUPPLIER..."
+          docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/supplier.ctl log=/tmp/tpch/supplier.log bad=/tmp/tpch/supplier.bad silent=feedback
+
+          echo "🔄 Loading PART..."
+          docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/part.ctl log=/tmp/tpch/part.log bad=/tmp/tpch/part.bad silent=feedback
+
+          echo "🔄 Loading PARTSUPP..."
+          docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/partsupp.ctl log=/tmp/tpch/partsupp.log bad=/tmp/tpch/partsupp.bad silent=feedback
+
+          echo "🔄 Loading CUSTOMER..."
+          docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/customer.ctl log=/tmp/tpch/customer.log bad=/tmp/tpch/customer.bad silent=feedback
+
+          echo "🔄 Loading ORDERS..."
+          docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/orders.ctl log=/tmp/tpch/orders.log bad=/tmp/tpch/orders.bad silent=feedback
+
+          echo "🔄 Loading LINEITEM (this may take a while)..."
+          docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/lineitem.ctl log=/tmp/tpch/lineitem.log bad=/tmp/tpch/lineitem.bad silent=feedback
+
+          echo "✅ Data loading complete!"
+
+      - name: Add foreign key constraints
+        run: |
+          echo "🔗 Adding foreign key constraints..."
+          docker exec -i ${{ job.services.oracle.id }} sqlplus -S sampleuser/SamplePass123@//localhost:1521/XEPDB1 <<'EOF'
+          ALTER TABLE NATION ADD CONSTRAINT FK_NATION_REGION 
+            FOREIGN KEY (N_REGIONKEY) REFERENCES REGION(R_REGIONKEY);
+
+          ALTER TABLE SUPPLIER ADD CONSTRAINT FK_SUPPLIER_NATION 
+            FOREIGN KEY (S_NATIONKEY) REFERENCES NATION(N_NATIONKEY);
+
+          ALTER TABLE PARTSUPP ADD CONSTRAINT FK_PARTSUPP_PART 
+            FOREIGN KEY (PS_PARTKEY) REFERENCES PART(P_PARTKEY);
+
+          ALTER TABLE PARTSUPP ADD CONSTRAINT FK_PARTSUPP_SUPPLIER 
+            FOREIGN KEY (PS_SUPPKEY) REFERENCES SUPPLIER(S_SUPPKEY);
+
+          ALTER TABLE CUSTOMER ADD CONSTRAINT FK_CUSTOMER_NATION 
+            FOREIGN KEY (C_NATIONKEY) REFERENCES NATION(N_NATIONKEY);
+
+          ALTER TABLE ORDERS ADD CONSTRAINT FK_ORDERS_CUSTOMER 
+            FOREIGN KEY (O_CUSTKEY) REFERENCES CUSTOMER(C_CUSTKEY);
+
+          ALTER TABLE LINEITEM ADD CONSTRAINT FK_LINEITEM_ORDERS 
+            FOREIGN KEY (L_ORDERKEY) REFERENCES ORDERS(O_ORDERKEY);
+
+          ALTER TABLE LINEITEM ADD CONSTRAINT FK_LINEITEM_PARTSUPP 
+            FOREIGN KEY (L_PARTKEY, L_SUPPKEY) REFERENCES PARTSUPP(PS_PARTKEY, PS_SUPPKEY);
+
+          EXIT;
+          EOF
+          echo "✅ Constraints added"
+
+      - name: Verify data load
+        run: |
+          echo "📊 Verifying data load..."
+          docker exec -i ${{ job.services.oracle.id }} sqlplus -S sampleuser/SamplePass123@//localhost:1521/XEPDB1 <<'EOF'
+          SET LINESIZE 100
+          SET PAGESIZE 50
+
+          SELECT 'REGION' as TABLE_NAME, COUNT(*) as ROW_COUNT FROM REGION
+          UNION ALL
+          SELECT 'NATION', COUNT(*) FROM NATION
+          UNION ALL
+          SELECT 'SUPPLIER', COUNT(*) FROM SUPPLIER
+          UNION ALL
+          SELECT 'PART', COUNT(*) FROM PART
+          UNION ALL
+          SELECT 'PARTSUPP', COUNT(*) FROM PARTSUPP
+          UNION ALL
+          SELECT 'CUSTOMER', COUNT(*) FROM CUSTOMER
+          UNION ALL
+          SELECT 'ORDERS', COUNT(*) FROM ORDERS
+          UNION ALL
+          SELECT 'LINEITEM', COUNT(*) FROM LINEITEM
+          ORDER BY TABLE_NAME;
+
+          EXIT;
+          EOF
+
+          echo "✅ Data verification complete!"
 
       - name: Verify services
         run: |
