@@ -180,48 +180,34 @@ jobs:
       - name: Load TPC-H data using SQL*Loader
         run: |
           echo "📥 Loading TPC-H data..."
-
-          # Create SQL*Loader control files using printf
-          docker exec ${{ job.services.oracle.id }} bash -c 'printf "LOAD DATA\nINFILE /tmp/tpch/region.tbl\nAPPEND INTO TABLE REGION\nFIELDS TERMINATED BY \"|\"\nTRAILING NULLCOLS\n(R_REGIONKEY, R_NAME, R_COMMENT)\n" > /tmp/tpch/region.ctl'
-
-          docker exec ${{ job.services.oracle.id }} bash -c 'printf "LOAD DATA\nINFILE /tmp/tpch/nation.tbl\nAPPEND INTO TABLE NATION\nFIELDS TERMINATED BY \"|\"\nTRAILING NULLCOLS\n(N_NATIONKEY, N_NAME, N_REGIONKEY, N_COMMENT)\n" > /tmp/tpch/nation.ctl'
-
-          docker exec ${{ job.services.oracle.id }} bash -c 'printf "LOAD DATA\nINFILE /tmp/tpch/supplier.tbl\nAPPEND INTO TABLE SUPPLIER\nFIELDS TERMINATED BY \"|\"\nTRAILING NULLCOLS\n(S_SUPPKEY, S_NAME, S_ADDRESS, S_NATIONKEY, S_PHONE, S_ACCTBAL, S_COMMENT)\n" > /tmp/tpch/supplier.ctl'
-
-          docker exec ${{ job.services.oracle.id }} bash -c 'printf "LOAD DATA\nINFILE /tmp/tpch/part.tbl\nAPPEND INTO TABLE PART\nFIELDS TERMINATED BY \"|\"\nTRAILING NULLCOLS\n(P_PARTKEY, P_NAME, P_MFGR, P_BRAND, P_TYPE, P_SIZE, P_CONTAINER, P_RETAILPRICE, P_COMMENT)\n" > /tmp/tpch/part.ctl'
-
-          docker exec ${{ job.services.oracle.id }} bash -c 'printf "LOAD DATA\nINFILE /tmp/tpch/partsupp.tbl\nAPPEND INTO TABLE PARTSUPP\nFIELDS TERMINATED BY \"|\"\nTRAILING NULLCOLS\n(PS_PARTKEY, PS_SUPPKEY, PS_AVAILQTY, PS_SUPPLYCOST, PS_COMMENT)\n" > /tmp/tpch/partsupp.ctl'
-
-          docker exec ${{ job.services.oracle.id }} bash -c 'printf "LOAD DATA\nINFILE /tmp/tpch/customer.tbl\nAPPEND INTO TABLE CUSTOMER\nFIELDS TERMINATED BY \"|\"\nTRAILING NULLCOLS\n(C_CUSTKEY, C_NAME, C_ADDRESS, C_NATIONKEY, C_PHONE, C_ACCTBAL, C_MKTSEGMENT, C_COMMENT)\n" > /tmp/tpch/customer.ctl'
-
-          docker exec ${{ job.services.oracle.id }} bash -c 'printf "LOAD DATA\nINFILE /tmp/tpch/orders.tbl\nAPPEND INTO TABLE ORDERS\nFIELDS TERMINATED BY \"|\"\nTRAILING NULLCOLS\n(O_ORDERKEY, O_CUSTKEY, O_ORDERSTATUS, O_TOTALPRICE,\n O_ORDERDATE DATE \"YYYY-MM-DD\", O_ORDERPRIORITY, O_CLERK, O_SHIPPRIORITY, O_COMMENT)\n" > /tmp/tpch/orders.ctl'
-
-          docker exec ${{ job.services.oracle.id }} bash -c 'printf "LOAD DATA\nINFILE /tmp/tpch/lineitem.tbl\nAPPEND INTO TABLE LINEITEM\nFIELDS TERMINATED BY \"|\"\nTRAILING NULLCOLS\n(L_ORDERKEY, L_PARTKEY, L_SUPPKEY, L_LINENUMBER, L_QUANTITY, L_EXTENDEDPRICE,\n L_DISCOUNT, L_TAX, L_RETURNFLAG, L_LINESTATUS,\n L_SHIPDATE DATE \"YYYY-MM-DD\", L_COMMITDATE DATE \"YYYY-MM-DD\",\n L_RECEIPTDATE DATE \"YYYY-MM-DD\", L_SHIPINSTRUCT, L_SHIPMODE, L_COMMENT)\n" > /tmp/tpch/lineitem.ctl'
-
+          
+          # Copy control files to container
+          docker cp oracle/data/ctl/. ${{ job.services.oracle.id }}:/tmp/tpch/
+          
           echo "🔄 Loading REGION..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/region.ctl log=/tmp/tpch/region.log bad=/tmp/tpch/region.bad silent=feedback
-
+          
           echo "🔄 Loading NATION..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/nation.ctl log=/tmp/tpch/nation.log bad=/tmp/tpch/nation.bad silent=feedback
-
+          
           echo "🔄 Loading SUPPLIER..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/supplier.ctl log=/tmp/tpch/supplier.log bad=/tmp/tpch/supplier.bad silent=feedback
-
+          
           echo "🔄 Loading PART..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/part.ctl log=/tmp/tpch/part.log bad=/tmp/tpch/part.bad silent=feedback
-
+          
           echo "🔄 Loading PARTSUPP..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/partsupp.ctl log=/tmp/tpch/partsupp.log bad=/tmp/tpch/partsupp.bad silent=feedback
-
+          
           echo "🔄 Loading CUSTOMER..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/customer.ctl log=/tmp/tpch/customer.log bad=/tmp/tpch/customer.bad silent=feedback
-
+          
           echo "🔄 Loading ORDERS..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/orders.ctl log=/tmp/tpch/orders.log bad=/tmp/tpch/orders.bad silent=feedback
-
+          
           echo "🔄 Loading LINEITEM (this may take a while)..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/lineitem.ctl log=/tmp/tpch/lineitem.log bad=/tmp/tpch/lineitem.bad silent=feedback
-
+          
           echo "✅ Data loading complete!"
 
       - name: Add foreign key constraints
