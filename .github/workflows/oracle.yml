@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          lfs: true  # ← This downloads actual LFS files instead of pointers
+          lfs: true # ← This downloads actual LFS files instead of pointers
 
       - name: Wait for oracle health
         run: |
@@ -164,17 +164,17 @@ jobs:
       - name: Copy TPC-H data files to container
         run: |
           echo "📦 Copying .tbl files to Oracle container..."
-          
+
           # Create directory in container first
           docker exec ${{ job.services.oracle.id }} mkdir -p /tmp/tpch
-          
+
           # Copy files
           docker cp oracle/data/tables/. ${{ job.services.oracle.id }}:/tmp/tpch/
-          
+
           # Verify files were copied with actual content
           echo "📋 Verifying files..."
           docker exec ${{ job.services.oracle.id }} ls -lh /tmp/tpch/
-          
+
           echo "✅ Files copied"
 
       - name: Load TPC-H data using SQL*Loader
@@ -184,7 +184,7 @@ jobs:
           # Create SQL*Loader control files in the container
           docker exec ${{ job.services.oracle.id }} bash -c 'cat > /tmp/tpch/region.ctl << "EOF"
           LOAD DATA
-          INFILE '/tmp/tpch/region.tbl'
+          INFILE /tmp/tpch/region.tbl
           APPEND INTO TABLE REGION
           FIELDS TERMINATED BY "|"
           TRAILING NULLCOLS
@@ -193,7 +193,7 @@ jobs:
 
           docker exec ${{ job.services.oracle.id }} bash -c 'cat > /tmp/tpch/nation.ctl << "EOF"
           LOAD DATA
-          INFILE '/tmp/tpch/nation.tbl'
+          INFILE /tmp/tpch/nation.tbl
           APPEND INTO TABLE NATION
           FIELDS TERMINATED BY "|"
           TRAILING NULLCOLS
@@ -202,7 +202,7 @@ jobs:
 
           docker exec ${{ job.services.oracle.id }} bash -c 'cat > /tmp/tpch/supplier.ctl << "EOF"
           LOAD DATA
-          INFILE '/tmp/tpch/supplier.tbl'
+          INFILE /tmp/tpch/supplier.tbl
           APPEND INTO TABLE SUPPLIER
           FIELDS TERMINATED BY "|"
           TRAILING NULLCOLS
@@ -211,7 +211,7 @@ jobs:
 
           docker exec ${{ job.services.oracle.id }} bash -c 'cat > /tmp/tpch/part.ctl << "EOF"
           LOAD DATA
-          INFILE '/tmp/tpch/part.tbl'
+          INFILE /tmp/tpch/part.tbl
           APPEND INTO TABLE PART
           FIELDS TERMINATED BY "|"
           TRAILING NULLCOLS
@@ -220,7 +220,7 @@ jobs:
 
           docker exec ${{ job.services.oracle.id }} bash -c 'cat > /tmp/tpch/partsupp.ctl << "EOF"
           LOAD DATA
-          INFILE '/tmp/tpch/partsupp.tbl'
+          INFILE /tmp/tpch/partsupp.tbl
           APPEND INTO TABLE PARTSUPP
           FIELDS TERMINATED BY "|"
           TRAILING NULLCOLS
@@ -229,7 +229,7 @@ jobs:
 
           docker exec ${{ job.services.oracle.id }} bash -c 'cat > /tmp/tpch/customer.ctl << "EOF"
           LOAD DATA
-          INFILE '/tmp/tpch/customer.tbl'
+          INFILE /tmp/tpch/customer.tbl
           APPEND INTO TABLE CUSTOMER
           FIELDS TERMINATED BY "|"
           TRAILING NULLCOLS
@@ -238,24 +238,24 @@ jobs:
 
           docker exec ${{ job.services.oracle.id }} bash -c 'cat > /tmp/tpch/orders.ctl << "EOF"
           LOAD DATA
-          INFILE '/tmp/tpch/orders.tbl'
+          INFILE /tmp/tpch/orders.tbl
           APPEND INTO TABLE ORDERS
           FIELDS TERMINATED BY "|"
           TRAILING NULLCOLS
           (O_ORDERKEY, O_CUSTKEY, O_ORDERSTATUS, O_TOTALPRICE, 
-           O_ORDERDATE DATE "YYYY-MM-DD", O_ORDERPRIORITY, O_CLERK, O_SHIPPRIORITY, O_COMMENT)
+          O_ORDERDATE DATE "YYYY-MM-DD", O_ORDERPRIORITY, O_CLERK, O_SHIPPRIORITY, O_COMMENT)
           EOF'
 
           docker exec ${{ job.services.oracle.id }} bash -c 'cat > /tmp/tpch/lineitem.ctl << "EOF"
           LOAD DATA
-          INFILE '/tmp/tpch/lineitem.tbl'
+          INFILE /tmp/tpch/lineitem.tbl
           APPEND INTO TABLE LINEITEM
           FIELDS TERMINATED BY "|"
           TRAILING NULLCOLS
           (L_ORDERKEY, L_PARTKEY, L_SUPPKEY, L_LINENUMBER, L_QUANTITY, L_EXTENDEDPRICE, 
-           L_DISCOUNT, L_TAX, L_RETURNFLAG, L_LINESTATUS, 
-           L_SHIPDATE DATE "YYYY-MM-DD", L_COMMITDATE DATE "YYYY-MM-DD", 
-           L_RECEIPTDATE DATE "YYYY-MM-DD", L_SHIPINSTRUCT, L_SHIPMODE, L_COMMENT)
+          L_DISCOUNT, L_TAX, L_RETURNFLAG, L_LINESTATUS, 
+          L_SHIPDATE DATE "YYYY-MM-DD", L_COMMITDATE DATE "YYYY-MM-DD", 
+          L_RECEIPTDATE DATE "YYYY-MM-DD", L_SHIPINSTRUCT, L_SHIPMODE, L_COMMENT)
           EOF'
 
           echo "🔄 Loading REGION..."
