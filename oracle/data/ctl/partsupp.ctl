@@ -1,5 +1,5 @@
 LOAD DATA
-INFILE /tmp/tpch/partsupp.tbl
+INFILE '/tmp/tpch/partsupp.tbl'
 APPEND INTO TABLE PARTSUPP
 FIELDS TERMINATED BY "|"
 TRAILING NULLCOLS

@@ -1,5 +1,5 @@
 LOAD DATA
-INFILE /tmp/tpch/nation.tbl
+INFILE '/tmp/tpch/nation.tbl'
 APPEND INTO TABLE NATION
 FIELDS TERMINATED BY "|"
 TRAILING NULLCOLS

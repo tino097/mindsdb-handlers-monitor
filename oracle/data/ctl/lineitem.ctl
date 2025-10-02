@@ -1,5 +1,5 @@
 LOAD DATA
-INFILE /tmp/tpch/lineitem.tbl
+INFILE '/tmp/tpch/lineitem.tbl'
 APPEND INTO TABLE LINEITEM
 FIELDS TERMINATED BY "|"
 TRAILING NULLCOLS

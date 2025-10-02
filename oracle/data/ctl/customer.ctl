@@ -1,5 +1,5 @@
 LOAD DATA
-INFILE /tmp/tpch/customer.tbl
+INFILE '/tmp/tpch/customer.tbl'
 APPEND INTO TABLE CUSTOMER
 FIELDS TERMINATED BY "|"
 TRAILING NULLCOLS

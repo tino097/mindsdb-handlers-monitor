@@ -1,5 +1,5 @@
 LOAD DATA
-INFILE /tmp/tpch/supplier.tbl
+INFILE '/tmp/tpch/supplier.tbl'
 APPEND INTO TABLE SUPPLIER
 FIELDS TERMINATED BY "|"
 TRAILING NULLCOLS
