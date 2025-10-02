@@ -315,15 +315,6 @@ jobs:
           cd oracle/tests
           pytest -v --tb=short
 
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: tpch-test-results
-          path: |
-            oracle/tests/tpch_results.json
-            oracle/tests/*.log
-
       - name: Cleanup
         if: always()
         run: |
