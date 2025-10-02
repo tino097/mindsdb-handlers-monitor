@@ -23,6 +23,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true  # ← This downloads actual LFS files instead of pointers
 
       - name: Wait for oracle health
         run: |
@@ -162,8 +164,17 @@ jobs:
       - name: Copy TPC-H data files to container
         run: |
           echo "📦 Copying .tbl files to Oracle container..."
+          
+          # Create directory in container first
+          docker exec ${{ job.services.oracle.id }} mkdir -p /tmp/tpch
+          
+          # Copy files
           docker cp oracle/data/tables/. ${{ job.services.oracle.id }}:/tmp/tpch/
+          
+          # Verify files were copied with actual content
+          echo "📋 Verifying files..."
           docker exec ${{ job.services.oracle.id }} ls -lh /tmp/tpch/
+          
           echo "✅ Files copied"
 
       - name: Load TPC-H data using SQL*Loader
