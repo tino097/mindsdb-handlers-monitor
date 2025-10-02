@@ -184,6 +184,14 @@ jobs:
           # Copy control files to container
           docker cp oracle/data/ctl/. ${{ job.services.oracle.id }}:/tmp/tpch/
           
+          # Debug: Check what's in the control file
+          echo "🔍 Checking region.ctl content:"
+          docker exec ${{ job.services.oracle.id }} cat /tmp/tpch/region.ctl
+          docker exec ${{ job.services.oracle.id }} od -c /tmp/tpch/region.ctl | head -20
+          
+          echo "🔄 Loading REGION..."
+          docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/region.ctl log=/tmp/tpch/region.log bad=/tmp/tpch/region.bad silent=feedback
+          
           echo "🔄 Loading REGION..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/region.ctl log=/tmp/tpch/region.log bad=/tmp/tpch/region.bad silent=feedback
           
