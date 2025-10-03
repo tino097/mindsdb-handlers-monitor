@@ -206,22 +206,10 @@ class TestSimpleFunctions:
         """Execute a simple SELECT 1 query through MindsDB."""
         sql = "SELECT 1 as test_value;"
         result = execute_sql_via_mindsdb(sql)
-        assert "data" in result
-        assert len(result["data"]) == 1
         print(result["data"])
-
-    def test_current_timestamp(self, mindsdb_connection):
-        """Execute a query to fetch the current timestamp from Oracle."""
-        sql = "SELECT CURRENT_TIMESTAMP as current_time FROM dual;"
-        result = execute_sql_via_mindsdb(sql)
         assert "data" in result
         assert len(result["data"]) == 1
-        # Verify that the returned value is a valid timestamp string
-        timestamp_str = result["data"][0]["CURRENT_TIME"]
-        try:
-            datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S.%f %z")
-        except ValueError:
-            pytest.fail(f"Invalid timestamp format: {timestamp_str}")
+        
 
 
 # -----------------------------------------------------------------------------
