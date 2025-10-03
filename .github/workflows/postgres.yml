@@ -52,7 +52,7 @@ jobs:
       - name: Start MindsDB
         run: |
           # Start MindsDB in background
-          python -m mindsdb --api http --verbose &
+          MINDSDB_NO_STUDIO=1 python -m mindsdb --api http --verbose &
           MINDSDB_PID=$!
           echo "MINDSDB_PID=$MINDSDB_PID" >> $GITHUB_ENV
           
