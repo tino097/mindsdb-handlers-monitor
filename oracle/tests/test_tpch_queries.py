@@ -198,7 +198,6 @@ def pytest_runtest_logreport(report):  # pragma: no cover -- log hook
             logger.info(f"⏭️ {report.nodeid}")
 
 
-@pytest.mark.basic
 class TestSimpleFunctions:
     """Simple sanity tests to verify MindsDB and Oracle connectivity."""
 
@@ -206,7 +205,7 @@ class TestSimpleFunctions:
         """Execute a simple SELECT 1 query through MindsDB."""
         sql = "SELECT 1 as test_value;"
         result = execute_sql_via_mindsdb(sql)
-        print(result["data"])
+        logger.info(f"Simple SELECT result: {result}")
         assert "data" in result
         assert len(result["data"]) == 1
         
@@ -216,39 +215,38 @@ class TestSimpleFunctions:
 # TPC‑H Query Tests
 # -----------------------------------------------------------------------------
 
+class TestTPCHQueries:
+    """Execute all 22 TPC‑H benchmark queries through MindsDB.
 
-# @pytest.mark.tpch
-# class TestTPCHQueries:
-#     """Execute all 22 TPC‑H benchmark queries through MindsDB.
+    Each test method corresponds to one of the official TPC‑H queries.  The
+    queries reference tables owned by the Oracle user connected through
+    MindsDB.  The database name is injected into the query using an f-string
+    and the `ORACLE_TPCH_DB` constant.  For queries that produce results,
+    we assert that the response contains a `data` key; for the pricing
+    summary query (Q1), we additionally assert that at least one row is
+    returned.
+    """
 
-#     Each test method corresponds to one of the official TPC‑H queries.  The
-#     queries reference tables owned by the Oracle user connected through
-#     MindsDB.  The database name is injected into the query using an f-string
-#     and the `ORACLE_TPCH_DB` constant.  For queries that produce results,
-#     we assert that the response contains a `data` key; for the pricing
-#     summary query (Q1), we additionally assert that at least one row is
-#     returned.
-#     """
-
-#     def test_q01_pricing_summary(self, mindsdb_connection):
-#         """Query 1: Pricing Summary Report"""
-#         sql = f"""
-#             SELECT l_returnflag, l_linestatus,
-#                 SUM(l_quantity) as sum_qty,
-#                 SUM(l_extendedprice) as sum_base_price,
-#                 SUM(l_extendedprice * (1 - l_discount)) as sum_disc_price,
-#                 SUM(l_extendedprice * (1 - l_discount) * (1 + l_tax)) as sum_charge,
-#                 AVG(l_quantity) as avg_qty,
-#                 AVG(l_extendedprice) as avg_price,
-#                 AVG(l_discount) as avg_disc,
-#                 COUNT(*) as count_order
-#             FROM {ORACLE_TPCH_DB}.lineitem
-#             WHERE l_shipdate <= '1998-09-02'
-#             GROUP BY l_returnflag, l_linestatus
-#             ORDER BY l_returnflag, l_linestatus
-#         """
-#         result = execute_sql_via_mindsdb(sql)
-#         assert len(result.get("data", [])) > 0, "Query returned no data"
+    def test_q01_pricing_summary(self, mindsdb_connection):
+        """Query 1: Pricing Summary Report"""
+        sql = f"""
+            SELECT l_returnflag, l_linestatus,
+                SUM(l_quantity) as sum_qty,
+                SUM(l_extendedprice) as sum_base_price,
+                SUM(l_extendedprice * (1 - l_discount)) as sum_disc_price,
+                SUM(l_extendedprice * (1 - l_discount) * (1 + l_tax)) as sum_charge,
+                AVG(l_quantity) as avg_qty,
+                AVG(l_extendedprice) as avg_price,
+                AVG(l_discount) as avg_disc,
+                COUNT(*) as count_order
+            FROM {ORACLE_TPCH_DB}.lineitem
+            WHERE l_shipdate <= '1998-09-02'
+            GROUP BY l_returnflag, l_linestatus
+            ORDER BY l_returnflag, l_linestatus
+        """
+        result = execute_sql_via_mindsdb(sql)
+        logger.info(f"Q1 Pricing Summary result: {result}")
+        assert len(result.get("data", [])) > 0, "Query returned no data"
 
 #     def test_q02_minimum_cost_supplier(self, mindsdb_connection):
 #         """Query 2: Minimum Cost Supplier"""
