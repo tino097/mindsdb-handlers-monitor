@@ -239,7 +239,7 @@ class TestTPCHQueries:
                 AVG(l_discount) as avg_disc,
                 COUNT(*) as count_order
             FROM {ORACLE_TPCH_DB}.lineitem
-            WHERE l_shipdate <= DATE '1998-09-02'
+            WHERE l_shipdate <= TO_DATE('1998-09-02', 'YYYY-MM-DD')
             GROUP BY l_returnflag, l_linestatus
             ORDER BY l_returnflag, l_linestatus
         """
