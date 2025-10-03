@@ -115,7 +115,8 @@ def mindsdb_connection(verify_mindsdb_ready: str) -> str:
     connection_params = {
         "user": os.getenv("ORACLE_USER", "sampleuser"),
         "password": os.getenv("ORACLE_PASSWORD", "SamplePass123"),
-        "dsn": os.getenv("ORACLE_DB", "localhost:1521/XEPDB1"),
+        "dsn": f"{os.getenv('ORACLE_HOST', 'localhost')}:{os.getenv('ORACLE_PORT', '1521')}/{os.getenv('ORACLE_DB', 'XEPDB1')}"
+
     }
     # Construct CREATE DATABASE SQL
     param_str = ",\n            ".join(
