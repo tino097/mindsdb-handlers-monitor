@@ -115,8 +115,7 @@ def mindsdb_connection(verify_mindsdb_ready: str) -> str:
     connection_params = {
         "user": os.getenv("ORACLE_USER", "sampleuser"),
         "password": os.getenv("ORACLE_PASSWORD", "SamplePass123"),
-        "dsn": f"{os.getenv('ORACLE_HOST', 'localhost')}:{os.getenv('ORACLE_PORT', '1521')}/{os.getenv('ORACLE_DB', 'XEPDB1')}"
-
+        "dsn": f"{os.getenv('ORACLE_HOST', 'localhost')}:{os.getenv('ORACLE_PORT', '1521')}/{os.getenv('ORACLE_DB', 'XEPDB1')}",
     }
     # Construct CREATE DATABASE SQL
     param_str = ",\n            ".join(
@@ -208,12 +207,12 @@ class TestSimpleFunctions:
         logger.info(f"Simple SELECT result: {result}")
         assert "data" in result
         assert len(result["data"]) == 1
-        
 
 
 # -----------------------------------------------------------------------------
 # TPC‑H Query Tests
 # -----------------------------------------------------------------------------
+
 
 class TestTPCHQueries:
     """Execute all 22 TPC‑H benchmark queries through MindsDB.
@@ -240,13 +239,14 @@ class TestTPCHQueries:
                 AVG(l_discount) as avg_disc,
                 COUNT(*) as count_order
             FROM {ORACLE_TPCH_DB}.lineitem
-            WHERE l_shipdate <= '1998-09-02'
+            WHERE l_shipdate <= DATE '1998-09-02'
             GROUP BY l_returnflag, l_linestatus
             ORDER BY l_returnflag, l_linestatus
         """
         result = execute_sql_via_mindsdb(sql)
         logger.info(f"Q1 Pricing Summary result: {result}")
         assert len(result.get("data", [])) > 0, "Query returned no data"
+
 
 #     def test_q02_minimum_cost_supplier(self, mindsdb_connection):
 #         """Query 2: Minimum Cost Supplier"""
