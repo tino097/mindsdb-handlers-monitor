@@ -120,7 +120,7 @@ def mindsdb_connection(verify_mindsdb_ready: str) -> str:
         "user": os.getenv("ORACLE_USER", "sampleuser"),
         "password": os.getenv("ORACLE_PASSWORD", "SamplePass123"),
         # MindsDB uses "sid" to refer to either SID or service_name
-        "sid": os.getenv("ORACLE_DB", "XEPDB1"),
+        "sid": os.getenv("ORACLE_DB", "XE"),
     }
     # Construct CREATE DATABASE SQL
     param_str = ",\n            ".join(
