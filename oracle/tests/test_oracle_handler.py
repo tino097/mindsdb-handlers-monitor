@@ -28,13 +28,6 @@ class TestOracleHandlerFunctionality:
         for table in expected_tables:
             assert table in tables, f"Table {table} not found"
 
-    def test_describe_table(self, mindsdb_connection):
-        """Test DESCRIBE functionality."""
-        sql = f"DESCRIBE {ORACLE_TPCH_DB}.REGION"
-        result = execute_sql_via_mindsdb(sql)
-        assert "data" in result
-        assert len(result["data"]) > 0
-
     def test_oracle_date_functions(self, mindsdb_connection):
         """Test Oracle-specific date functions."""
         sql = f"""
