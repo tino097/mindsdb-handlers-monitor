@@ -12,17 +12,25 @@ class TestOracleHandlerFunctionality:
         sql = f"SHOW TABLES FROM {ORACLE_TPCH_DB}"
         result = execute_sql_via_mindsdb(sql)
         assert "data" in result
-        
+
         # Should have 8 TPC-H tables
         tables = [row[0] for row in result["data"]]
-        expected_tables = ["REGION", "NATION", "SUPPLIER", "PART", 
-                          "PARTSUPP", "CUSTOMER", "ORDERS", "LINEITEM"]
+        expected_tables = [
+            "REGION",
+            "NATION",
+            "SUPPLIER",
+            "PART",
+            "PARTSUPP",
+            "CUSTOMER",
+            "ORDERS",
+            "LINEITEM",
+        ]
         for table in expected_tables:
             assert table in tables, f"Table {table} not found"
 
     def test_describe_table(self, mindsdb_connection):
         """Test DESCRIBE functionality."""
-        sql = f"DESCRIBE {ORACLE_TPCH_DB}.region"
+        sql = f"DESCRIBE {ORACLE_TPCH_DB}.REGION"
         result = execute_sql_via_mindsdb(sql)
         assert "data" in result
         assert len(result["data"]) > 0
@@ -44,7 +52,7 @@ class TestOracleHandlerFunctionality:
             SELECT SUBSTR(r_name, 1, 3) as short_name,
                    UPPER(r_name) as upper_name,
                    LENGTH(r_name) as name_length
-            FROM {ORACLE_TPCH_DB}.region
+            FROM {ORACLE_TPCH_DB}.REGION
             WHERE ROWNUM <= 3
         """
         result = execute_sql_via_mindsdb(sql)
@@ -56,7 +64,7 @@ class TestOracleHandlerFunctionality:
             SELECT ROUND(s_acctbal, 0) as rounded_bal,
                    TRUNC(s_acctbal, 1) as truncated_bal,
                    MOD(s_suppkey, 10) as mod_value
-            FROM {ORACLE_TPCH_DB}.supplier
+            FROM {ORACLE_TPCH_DB}.SUPPLIER
             WHERE ROWNUM <= 5
         """
         result = execute_sql_via_mindsdb(sql)
@@ -65,7 +73,7 @@ class TestOracleHandlerFunctionality:
     def test_rownum_pagination(self, mindsdb_connection):
         """Test Oracle ROWNUM for pagination."""
         sql = f"""
-            SELECT * FROM {ORACLE_TPCH_DB}.region
+            SELECT * FROM {ORACLE_TPCH_DB}.REGION
             WHERE ROWNUM <= 3
         """
         result = execute_sql_via_mindsdb(sql)
