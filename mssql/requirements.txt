@@ -5,13 +5,11 @@ pytest>=7.4.0
 pytest-cov>=4.1.0
 pytest-timeout>=2.1.0
 
-# MindsDB and database drivers
+# MindsDB
 mindsdb
-pymssql>=2.2.8
 
-# Data handling
-pandas>=2.0.0
-numpy>=1.24.0
+# HTTP client for MindsDB API
+requests>=2.31.0
 
 # Logging and utilities
 colorlog>=6.7.0
