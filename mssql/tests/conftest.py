@@ -14,14 +14,8 @@ logger = logging.getLogger(__name__)
 # MindsDB HTTP API
 MINDSDB_API_URL = os.getenv("MINDSDB_API_URL", "http://localhost:47334")
 
-# IMPORTANT: We reuse the same string for:
-# 1) The remote SQL Server database name (MSSQL_DATABASE)
-# 2) The MindsDB "database" (datasource) name we create.
-# In the workflow, both are "TestDB" on purpose, so queries like:
-#   SHOW TABLES FROM TestDB
-#   SELECT TOP 1 * FROM TestDB.dbo.region
-# work naturally through MindsDB.
-MSSQL_DB = os.getenv("MSSQL_DB", "mssql_test")
+
+MSSQL_DB = os.getenv("MSSQL_DB", "mssql_test").lower()
 
 
 def _mindsdb_post(path: str, json: Dict[str, Any], timeout: int) -> Dict[str, Any]:
