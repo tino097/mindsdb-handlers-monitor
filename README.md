@@ -74,7 +74,6 @@ Each database handler follows a consistent structure:
 
 ```
 database/
-├── docker-compose.yml          # Local testing environment
 ├── sql/
 │   ├── init_schema.sql        # Database schema
 │   └── load_data.sql          # Test data
