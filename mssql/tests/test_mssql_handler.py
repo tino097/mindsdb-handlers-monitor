@@ -1,4 +1,10 @@
 # mssql/tests/test_mssql_handler.py
+import os
+import sys
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import pytest
 from conftest import MSSQL_DB, execute_sql_via_mindsdb
 

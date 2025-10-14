@@ -119,14 +119,14 @@ def pytest_configure(config):
 
 def pytest_sessionstart(session):
     """Log the start of the pytest session."""
-    logger.info("🚀 Starting MindsDB MS SQL Handler Test Suite")
-    logger.info("=" * 60)
+    print("🚀 Starting MindsDB MS SQL Handler Test Suite")
+    print("=" * 60)
 
 
 def pytest_sessionfinish(session, exitstatus):
     """Log the end of the pytest session."""
-    logger.info("=" * 60)
+    print("=" * 60)
     if exitstatus == 0:
-        logger.info("✅ All tests completed successfully!")
+        print("✅ All tests completed successfully!")
     else:
-        logger.error(f"❌ Tests completed with exit status: {exitstatus}")
+        print(f"❌ Tests completed with exit status: {exitstatus}")

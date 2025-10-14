@@ -1,9 +1,13 @@
 # mssql/tests/test_tpch_queries.py
 import os
+import sys
 import time
 import logging
 from datetime import datetime
 from typing import Any, Dict
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import pytest
 from conftest import MSSQL_DB, execute_sql_via_mindsdb
