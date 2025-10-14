@@ -1,0 +1,18 @@
+# MS SQL Server Handler Test Requirements
+
+# Testing framework
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-timeout>=2.1.0
+
+# MindsDB and database drivers
+mindsdb
+pymssql>=2.2.8
+
+# Data handling
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Logging and utilities
+colorlog>=6.7.0
+python-dotenv>=1.0.0
