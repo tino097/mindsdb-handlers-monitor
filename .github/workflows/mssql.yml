@@ -1,0 +1,152 @@
+name: MindsDB MS SQL Server Monitor CI
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "mssql/**"
+      - ".github/workflows/mssql-tests.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "mssql/**"
+      - ".github/workflows/mssql-tests.yml"
+  workflow_dispatch:
+
+env:
+  MSSQL_SA_PASSWORD: "YourStrong@Passw0rd"
+  MSSQL_DB: "TestDB"
+  MSSQL_USER: "testuser"
+  MSSQL_USER_PASSWORD: "TestUser@123"
+  MINDSDB_API_URL: "http://localhost:47334"
+
+jobs:
+  test-mssql-handler:
+    runs-on: ubuntu-latest
+
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: "YourStrong@Passw0rd"
+          MSSQL_PID: "Developer"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -C -Q 'SELECT 1' || exit 1"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 10
+          --health-start-period 60s
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov requests
+
+      - name: ⏳ Wait for SQL Server to be ready
+        run: |
+          echo "Waiting for SQL Server to be fully ready..."
+          for i in {1..30}; do
+            if docker exec $(docker ps -q -f ancestor=mcr.microsoft.com/mssql/server:2022-latest) /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -C -Q "SELECT 1" > /dev/null 2>&1; then
+              echo "SQL Server is ready!"
+              break
+            fi
+            echo "Attempt $i: SQL Server not ready yet, waiting..."
+            sleep 2
+          done
+
+      - name: 🗄️ Initialize database and create test user
+        run: |
+          CONTAINER_ID=$(docker ps -q -f ancestor=mcr.microsoft.com/mssql/server:2022-latest)
+
+          echo "Creating database TestDB..."
+          docker exec $CONTAINER_ID /opt/mssql-tools18/bin/sqlcmd \
+            -S localhost -U sa -P "YourStrong@Passw0rd" -C \
+            -Q "CREATE DATABASE TestDB;"
+
+          echo "Creating login and user..."
+          docker exec $CONTAINER_ID /opt/mssql-tools18/bin/sqlcmd \
+            -S localhost -U sa -P "YourStrong@Passw0rd" -C \
+            -Q "CREATE LOGIN testuser WITH PASSWORD = 'TestUser@123', CHECK_POLICY = OFF;"
+
+          docker exec $CONTAINER_ID /opt/mssql-tools18/bin/sqlcmd \
+            -S localhost -U sa -P "YourStrong@Passw0rd" -C -d TestDB \
+            -Q "CREATE USER testuser FOR LOGIN testuser; ALTER ROLE db_owner ADD MEMBER testuser;"
+
+          echo "Verifying user creation..."
+          docker exec $CONTAINER_ID /opt/mssql-tools18/bin/sqlcmd \
+            -S localhost -U sa -P "YourStrong@Passw0rd" -C \
+            -Q "SELECT name FROM sys.server_principals WHERE name = 'testuser';"
+
+          echo "Testing testuser connection..."
+          docker exec $CONTAINER_ID /opt/mssql-tools18/bin/sqlcmd \
+            -S localhost -U testuser -P "TestUser@123" -C -d TestDB \
+            -Q "SELECT DB_NAME() as current_database;"
+
+      - name: 📊 Load test data into SQL Server
+        run: |
+          # Copy SQL files into the container
+          CONTAINER_ID=$(docker ps -q -f ancestor=mcr.microsoft.com/mssql/server:2022-latest)
+          docker cp mssql/sql/init_schema.sql $CONTAINER_ID:/tmp/init_schema.sql
+          docker cp mssql/sql/load_data.sql $CONTAINER_ID:/tmp/load_data.sql
+
+          echo "Loading schema..."
+          docker exec $CONTAINER_ID /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -C -d TestDB -i /tmp/init_schema.sql
+
+          echo "Loading data..."
+          docker exec $CONTAINER_ID /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -C -d TestDB -i /tmp/load_data.sql
+
+          echo "Verifying tables..."
+          docker exec $CONTAINER_ID /opt/mssql-tools18/bin/sqlcmd \
+            -S localhost -U testuser -P "TestUser@123" -C -d TestDB \
+            -Q "SELECT name FROM sys.tables ORDER BY name;"
+
+          echo "Verifying data..."
+          docker exec $CONTAINER_ID /opt/mssql-tools18/bin/sqlcmd \
+            -S localhost -U testuser -P "TestUser@123" -C -d TestDB \
+            -Q "SELECT COUNT(*) as customer_count FROM customer;"
+
+      - name: Install & start MindsDB
+        run: |
+          python -m pip install --upgrade pip
+          git clone https://github.com/tino097/mindsdb.git
+          cd mindsdb
+          git checkout develop
+          pip install -e .[mssql]
+          echo "🚀 Starting MindsDB..."
+          MINDSDB_NO_STUDIO=1 python -m mindsdb --api http --verbose &
+          echo "MINDSDB_PID=$!" >> $GITHUB_ENV
+          for i in $(seq 1 180); do
+            echo "[$i] Checking MindsDB..."
+            if curl -sf http://127.0.0.1:47334/api/status >/dev/null; then
+              echo "✅ MindsDB is ready!"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "❌ MindsDB failed to start"; exit 1
+
+      - name: 🧪 Run MS SQL handler tests
+        env:
+          MSSQL_HOST: localhost
+          MSSQL_PORT: 1433
+          MSSQL_USER: testuser
+          MSSQL_PASSWORD: "TestUser@123"
+          MSSQL_DATABASE: TestDB
+          MINDSDB_API_URL: "http://localhost:47334"
+          LOG_LEVEL: INFO
+        run: |
+          cd mssql
+          pytest tests/ -v --tb=short --cov=. --cov-report=term-missing --cov-report=xml
+        continue-on-error: false

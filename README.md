@@ -17,3 +17,12 @@ A test suite and monitor for MindsDB Oracle XE integration.
 
 - Automated tests for Oracle XE connection and MindsDB integration.
 - CI status badge above shows the latest test results from GitHub Actions.
+
+## MS SQL Server Monitor CI
+
+[![MindsDB MS SQL Server Monitor CI](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/mssql.yml/badge.svg)](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/mssql.yml)
+
+A test suite and monitor for MindsDB MS SQL Server integration.
+
+- Automated tests for MS SQL Server connection and MindsDB integration.
+- CI status badge above shows the latest test results from GitHub Actions.
