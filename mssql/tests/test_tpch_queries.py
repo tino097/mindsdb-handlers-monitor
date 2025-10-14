@@ -31,7 +31,7 @@ class TestTPCHQueries:
     for MindsDB-compatible SQL syntax. The queries reference tables owned by the SQL
     Server user connected through MindsDB. The database name is injected into
     the query using an f-string and the `MSSQL_DB` constant.
-    
+
     Note: Uses standard SQL (LIMIT, EXTRACT) instead of T-SQL (TOP, YEAR) for MindsDB compatibility.
     """
 

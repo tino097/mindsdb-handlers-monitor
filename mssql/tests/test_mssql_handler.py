@@ -20,7 +20,8 @@ class TestMSSQLHandlerFunctionality:
         assert "data" in result
 
         # Should have 8 TPC-H tables
-        tables = [row[0] for row in result["data"]]
+        tables = [str(row[0]).lower() for row in result["data"]]
+        assert len(tables) == 8, f"Expected 8 tables, found {len(tables)}"
         expected_tables = [
             "region",
             "nation",
@@ -109,12 +110,12 @@ class TestMSSQLHandlerFunctionality:
     def test_group_by_query(self, mindsdb_connection):
         """Test GROUP BY with aggregations."""
         sql = f"""
-            SELECT 
-                r_regionkey,
+            SELECT
+                n.n_regionkey,
                 COUNT(*) as nation_count
-            FROM {MSSQL_DB}.nation
-            GROUP BY r_regionkey
-            ORDER BY r_regionkey
+            FROM {MSSQL_DB}.nation n
+            GROUP BY n.n_regionkey
+            ORDER BY n.n_regionkey
         """
         result = execute_sql_via_mindsdb(sql)
         assert "data" in result
