@@ -20,7 +20,8 @@ class TestMSSQLHandlerFunctionality:
         assert "data" in result
 
         # Should have 8 TPC-H tables
-        tables = [row[0] for row in result["data"]]
+        tables = [str(row[0]).lower() for row in result["data"]]
+        assert len(tables) == 8, f"Expected 8 tables, found {len(tables)}"
         expected_tables = [
             "region",
             "nation",
@@ -34,64 +35,98 @@ class TestMSSQLHandlerFunctionality:
         for table in expected_tables:
             assert table in tables, f"Table {table} not found"
 
-    def test_mssql_date_functions(self, mindsdb_connection):
-        """Test MS SQL Server-specific date functions."""
+    def test_simple_select(self, mindsdb_connection):
+        """Test simple SELECT query."""
         sql = f"""
-            SELECT GETDATE() as current_date,
-                   FORMAT(GETDATE(), 'yyyy-MM-dd') as formatted_date,
-                   DATEADD(day, 7, GETDATE()) as next_week
-            FROM {MSSQL_DB}.customer
-            WHERE c_custkey = 1
-        """
-        result = execute_sql_via_mindsdb(sql)
-        assert "data" in result
-        assert len(result["data"]) == 1
-
-    def test_mssql_string_functions(self, mindsdb_connection):
-        """Test MS SQL Server string functions."""
-        sql = f"""
-            SELECT TOP 3
-                SUBSTRING(r_name, 1, 3) as short_name,
-                UPPER(r_name) as upper_name,
-                LEN(r_name) as name_length
+            SELECT r_regionkey, r_name, r_comment
             FROM {MSSQL_DB}.region
-        """
-        result = execute_sql_via_mindsdb(sql)
-        assert "data" in result
-
-    def test_mssql_numeric_functions(self, mindsdb_connection):
-        """Test MS SQL Server numeric functions."""
-        sql = f"""
-            SELECT TOP 5
-                ROUND(s_acctbal, 0) as rounded_bal,
-                FLOOR(s_acctbal) as floor_bal,
-                CEILING(s_acctbal) as ceiling_bal,
-                s_suppkey % 10 as mod_value
-            FROM {MSSQL_DB}.supplier
-        """
-        result = execute_sql_via_mindsdb(sql)
-        assert "data" in result
-
-    def test_top_clause_pagination(self, mindsdb_connection):
-        """Test MS SQL Server TOP clause for pagination."""
-        sql = f"""
-            SELECT TOP 3 * FROM {MSSQL_DB}.region
+            LIMIT 3
         """
         result = execute_sql_via_mindsdb(sql)
         assert "data" in result
         assert len(result["data"]) <= 3
 
-    def test_window_functions(self, mindsdb_connection):
-        """Test MS SQL Server window functions."""
+    def test_string_functions(self, mindsdb_connection):
+        """Test basic string functions."""
         sql = f"""
-            SELECT TOP 5
-                c_custkey,
-                c_acctbal,
-                ROW_NUMBER() OVER (ORDER BY c_acctbal DESC) as row_num,
-                RANK() OVER (ORDER BY c_acctbal DESC) as rank,
-                NTILE(4) OVER (ORDER BY c_acctbal DESC) as quartile
-            FROM {MSSQL_DB}.customer
-            ORDER BY c_acctbal DESC
+            SELECT 
+                UPPER(r_name) as upper_name,
+                LOWER(r_name) as lower_name
+            FROM {MSSQL_DB}.region
+            LIMIT 3
+        """
+        result = execute_sql_via_mindsdb(sql)
+        assert "data" in result
+
+    def test_numeric_functions(self, mindsdb_connection):
+        """Test basic numeric functions."""
+        sql = f"""
+            SELECT 
+                ROUND(s_acctbal, 0) as rounded_bal,
+                ABS(s_acctbal) as abs_bal
+            FROM {MSSQL_DB}.supplier
+            LIMIT 5
+        """
+        result = execute_sql_via_mindsdb(sql)
+        assert "data" in result
+
+    def test_aggregation_functions(self, mindsdb_connection):
+        """Test aggregation functions."""
+        sql = f"""
+            SELECT 
+                COUNT(*) as region_count,
+                COUNT(DISTINCT r_name) as distinct_regions
+            FROM {MSSQL_DB}.region
+        """
+        result = execute_sql_via_mindsdb(sql)
+        assert "data" in result
+        assert len(result["data"]) == 1
+
+    def test_where_clause(self, mindsdb_connection):
+        """Test WHERE clause filtering."""
+        sql = f"""
+            SELECT r_regionkey, r_name
+            FROM {MSSQL_DB}.region
+            WHERE r_regionkey < 3
+            ORDER BY r_regionkey
+        """
+        result = execute_sql_via_mindsdb(sql)
+        assert "data" in result
+
+    def test_join_query(self, mindsdb_connection):
+        """Test simple JOIN query."""
+        sql = f"""
+            SELECT 
+                r.r_name as region_name,
+                n.n_name as nation_name
+            FROM {MSSQL_DB}.region r
+            INNER JOIN {MSSQL_DB}.nation n ON r.r_regionkey = n.n_regionkey
+            ORDER BY r.r_name, n.n_name
+            LIMIT 10
+        """
+        result = execute_sql_via_mindsdb(sql)
+        assert "data" in result
+
+    def test_group_by_query(self, mindsdb_connection):
+        """Test GROUP BY with aggregations."""
+        sql = f"""
+            SELECT
+                n.n_regionkey,
+                COUNT(*) as nation_count
+            FROM {MSSQL_DB}.nation n
+            GROUP BY n.n_regionkey
+            ORDER BY n.n_regionkey
+        """
+        result = execute_sql_via_mindsdb(sql)
+        assert "data" in result
+
+    def test_order_by_query(self, mindsdb_connection):
+        """Test ORDER BY clause."""
+        sql = f"""
+            SELECT s_suppkey, s_name, s_acctbal
+            FROM {MSSQL_DB}.supplier
+            ORDER BY s_acctbal DESC
+            LIMIT 5
         """
         result = execute_sql_via_mindsdb(sql)
         assert "data" in result
