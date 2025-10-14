@@ -83,8 +83,8 @@ jobs:
 
     - name: 📊 Load test data into SQL Server
       run: |
-        docker exec $(docker ps -q -f ancestor=mcr.microsoft.com/mssql/server:2022-latest) /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -C -d TestDB -i /github/workspace/mssql/sql/init_schema.sql
-        docker exec $(docker ps -q -f ancestor=mcr.microsoft.com/mssql/server:2022-latest) /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -C -d TestDB -i /github/workspace/mssql/sql/load_data.sql
+        docker exec $(docker ps -q -f ancestor=mcr.microsoft.com/mssql/server:2022-latest) /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -C -d TestDB -i mssql/sql/init_schema.sql
+        docker exec $(docker ps -q -f ancestor=mcr.microsoft.com/mssql/server:2022-latest) /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -C -d TestDB -i mssql/sql/load_data.sql
 
     - name: 🧪 Run MS SQL handler tests
       env:
@@ -96,23 +96,3 @@ jobs:
       run: |
         cd mssql
         pytest tests/ -v --tb=short --cov=. --cov-report=term-missing
-
-    - name: 📊 Generate test report
-      if: always()
-      run: |
-        echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        if [ -f mssql/.coverage ]; then
-          echo "✅ Tests completed" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "❌ Tests failed or did not complete" >> $GITHUB_STEP_SUMMARY
-        fi
-
-    - name: 📤 Upload coverage reports
-      if: always()
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./mssql/coverage.xml
-        flags: mssql
-        name: mssql-handler-coverage
-        fail_ci_if_error: false
