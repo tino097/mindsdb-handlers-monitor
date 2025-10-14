@@ -1,0 +1,98 @@
+name: MS SQL Server Handler Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'mssql/**'
+      - '.github/workflows/mssql-tests.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'mssql/**'
+      - '.github/workflows/mssql-tests.yml'
+  workflow_dispatch:
+
+env:
+  MSSQL_SA_PASSWORD: 'YourStrong@Passw0rd'
+  MSSQL_DB: 'TestDB'
+  MSSQL_USER: 'testuser'
+  MSSQL_USER_PASSWORD: 'TestUser@123'
+
+jobs:
+  test-mssql-handler:
+    runs-on: ubuntu-latest
+    
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: 'YourStrong@Passw0rd'
+          MSSQL_PID: 'Developer'
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -Q 'SELECT 1' || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v4
+
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov pymssql mindsdb
+
+    - name: ⏳ Wait for SQL Server to be ready
+      run: |
+        echo "Waiting for SQL Server to be fully ready..."
+        for i in {1..30}; do
+          if docker exec $(docker ps -q -f ancestor=mcr.microsoft.com/mssql/server:2022-latest) /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -Q "SELECT 1" > /dev/null 2>&1; then
+            echo "SQL Server is ready!"
+            break
+          fi
+          echo "Attempt $i: SQL Server not ready yet, waiting..."
+          sleep 2
+        done
+
+    - name: 🗄️ Initialize database and create test user
+      run: |
+        docker exec $(docker ps -q -f ancestor=mcr.microsoft.com/mssql/server:2022-latest) /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -Q "
+        CREATE DATABASE TestDB;
+        GO
+        USE TestDB;
+        GO
+        CREATE LOGIN testuser WITH PASSWORD = 'TestUser@123';
+        GO
+        CREATE USER testuser FOR LOGIN testuser;
+        GO
+        ALTER ROLE db_owner ADD MEMBER testuser;
+        GO
+        "
+
+    - name: 📊 Load test data into SQL Server
+      run: |
+        docker exec $(docker ps -q -f ancestor=mcr.microsoft.com/mssql/server:2022-latest) /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -d TestDB -i /github/workspace/mssql/sql/init_schema.sql
+        docker exec $(docker ps -q -f ancestor=mcr.microsoft.com/mssql/server:2022-latest) /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -d TestDB -i /github/workspace/mssql/sql/load_data.sql
+
+    - name: 🧪 Run MS SQL handler tests
+      env:
+        MSSQL_HOST: localhost
+        MSSQL_PORT: 1433
+        MSSQL_USER: testuser
+        MSSQL_PASSWORD: 'TestUser@123'
+        MSSQL_DATABASE: TestDB
+      run: |
+        cd mssql
+        pytest tests/ -v --tb=short --cov=. --cov-report=term-missing
+
