@@ -52,7 +52,7 @@ jobs:
       - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov requests mindsdb
+          pip install pytest pytest-cov requests
 
       - name: ⏳ Wait for SQL Server to be ready
         run: |
@@ -117,27 +117,25 @@ jobs:
             -S localhost -U testuser -P "TestUser@123" -C -d TestDB \
             -Q "SELECT COUNT(*) as customer_count FROM customer;"
 
-      - name: 🧠 Start MindsDB
+      - name: Install & start MindsDB
         run: |
-          echo "Starting MindsDB in the background..."
-          nohup python -m mindsdb --api http --config mssql/mindsdb_config.json > mindsdb.log 2>&1 &
-          MINDSDB_PID=$!
-          echo "MindsDB started with PID: $MINDSDB_PID"
-          echo $MINDSDB_PID > mindsdb.pid
-
-          # Wait for MindsDB to be ready
-          echo "Waiting for MindsDB to be ready..."
-          for i in {1..60}; do
-            if curl -s http://localhost:47334/api/status > /dev/null 2>&1; then
-              echo "MindsDB is ready!"
-              break
+          python -m pip install --upgrade pip
+          git clone https://github.com/tino097/mindsdb.git
+          cd mindsdb
+          git checkout develop
+          pip install -e .[all,oracle]
+          echo "🚀 Starting MindsDB..."
+          MINDSDB_NO_STUDIO=1 python -m mindsdb --api http --verbose &
+          echo "MINDSDB_PID=$!" >> $GITHUB_ENV
+          for i in $(seq 1 180); do
+            echo "[$i] Checking MindsDB..."
+            if curl -sf http://127.0.0.1:47334/api/status >/dev/null; then
+              echo "✅ MindsDB is ready!"
+              exit 0
             fi
-            echo "Attempt $i: MindsDB not ready yet, waiting..."
-            sleep 2
+            sleep 1
           done
-
-          # Verify MindsDB is responding
-          curl -s http://localhost:47334/api/status || echo "Warning: MindsDB status check failed"
+          echo "❌ MindsDB failed to start"; exit 1
 
       - name: 🧪 Run MS SQL handler tests
         env:
