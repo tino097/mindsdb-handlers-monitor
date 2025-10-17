@@ -290,92 +290,11 @@ jobs:
         if: always() && github.event_name != 'pull_request'
         run: |
           echo "📝 Updating postgres/README.md with latest test results..."
-
-          # Generate test results section
-          python3 <<'PYEOF' > /tmp/readme_section.md
-              import xml.etree.ElementTree as ET
-              from datetime import datetime
-              import os
-
-              # Parse JUnit XML if it exists
-              if os.path.exists('/tmp/test_results/junit.xml'):
-                  tree = ET.parse('/tmp/test_results/junit.xml')
-                  root = tree.getroot()
-                  testsuite = root.find('.//testsuite')
-                  
-                  if testsuite is not None:
-                      total = int(testsuite.get('tests', 0))
-                      failures = int(testsuite.get('failures', 0))
-                      errors = int(testsuite.get('errors', 0))
-                      skipped = int(testsuite.get('skipped', 0))
-                      passed = total - failures - errors - skipped
-                      time = float(testsuite.get('time', 0))
-                      success_rate = (passed / total * 100) if total > 0 else 0
-                      
-                      # Determine status emoji
-                      if success_rate == 100:
-                          status = "✅ All tests passing"
-                          color = "brightgreen"
-                      elif success_rate >= 80:
-                          status = "⚠️ Some tests failing"
-                          color = "yellow"
-                      else:
-                          status = "❌ Tests failing"
-                          color = "red"
-                      
-                      print("<!-- TEST_RESULTS_START -->")
-                      print("## 📊 Latest Test Results")
-                      print("")
-                      print(f"![Tests]({os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{os.environ.get('GITHUB_REPOSITORY')}/actions/workflows/postgres-ci.yml/badge.svg)")
-                      print(f"![Status](https://img.shields.io/badge/status-{status.split()[1]}-{color})")
-                      print("")
-                      print("| Metric | Value |")
-                      print("|--------|-------|")
-                      print(f"| **Status** | {status} |")
-                      print(f"| **Total Tests** | {total} |")
-                      print(f"| **✅ Passed** | {passed} |")
-                      print(f"| **❌ Failed** | {failures} |")
-                      print(f"| **⚠️ Errors** | {errors} |")
-                      print(f"| **⏭️ Skipped** | {skipped} |")
-                      print(f"| **Success Rate** | {success_rate:.1f}% |")
-                      print(f"| **Duration** | {time:.2f}s |")
-                      print(f"| **Last Updated** | {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')} |")
-                      print("")
-                      print(f"[📋 View detailed results]({os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{os.environ.get('GITHUB_REPOSITORY')}/actions/workflows/postgres-ci.yml)")
-                      print("")
-                      print("<!-- TEST_RESULTS_END -->")
-                  else:
-                      print("<!-- TEST_RESULTS_START -->")
-                      print("## 📊 Latest Test Results")
-                      print("")
-                      print("⚠️ No test data available")
-                      print("")
-                      print("<!-- TEST_RESULTS_END -->")
-              else:
-                  print("<!-- TEST_RESULTS_START -->")
-                  print("## 📊 Latest Test Results")
-                  print("")
-                  print("⚠️ No test data available")
-                  print("")
-                  print("<!-- TEST_RESULTS_END -->")
-              PYEOF
-
-          # Update or append to README
-          if [ -f postgres/README.md ]; then
-            if grep -q "<!-- TEST_RESULTS_START -->" postgres/README.md; then
-              # Replace existing section
-              sed -i '/<!-- TEST_RESULTS_START -->/,/<!-- TEST_RESULTS_END -->/d' postgres/README.md
-              cat /tmp/readme_section.md >> postgres/README.md
-              echo "✅ Updated existing test results section"
-            else
-              # Append new section
-              echo "" >> postgres/README.md
-              cat /tmp/readme_section.md >> postgres/README.md
-              echo "✅ Added new test results section"
-            fi
-          else
-            echo "⚠️ postgres/README.md not found, skipping update"
-          fi
+          python3 .github/scripts/update_readme.py \
+            /tmp/test_results/junit.xml \
+            postgres/README.md \
+            "PostgreSQL" \
+            postgres.yml
 
       - name: Commit README changes
         if: always() && github.event_name != 'pull_request'

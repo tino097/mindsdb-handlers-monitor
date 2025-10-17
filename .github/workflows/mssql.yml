@@ -381,6 +381,26 @@ jobs:
             mssql/coverage.xml
           retention-days: 7
 
+      - name: 📝 Update mssql README with test results
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          echo "📝 Updating mssql/README.md with latest test results..."
+          python3 .github/scripts/update_readme.py \
+            /tmp/test_results/junit.xml \
+            mssql/README.md \
+            "MS SQL Server" \
+            mssql.yml
+
+      - name: 📝 Commit README changes
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add mssql/README.md || true
+          git diff --quiet && git diff --staged --quiet || \
+            (git commit -m "docs(mssql): Update test results in README [skip ci]" && git push) || \
+            echo "No changes to commit"
+
       - name: Cleanup
         if: always()
         run: |
