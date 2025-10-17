@@ -91,22 +91,17 @@ class TestKnowledgeBase:
         logger.info("📚 Creating Knowledge Base...")
 
         kb_sql = """
-        CREATE KNOWLEDGE_BASE oracle_regions_kb
-		USING
-			embedding_model = {
-				"provider": "ollama",
-				"model_name": "tinyllama",
-				"ollama_serve_url": "http://localhost:11434"
-			},
-			storage = oracle_regions_view,
-			content_columns = ['region_name', 'description'],
-            id_column = 'region_id';
+        CREATE KNOWLEDGE BASE oracle_regions_kb
+        USING
+            model = ollama_tinyllama,
+            storage = oracle_regions_view;
         """
 
         try:
             result = execute_sql_via_mindsdb(kb_sql, timeout=120)
             logger.info("✅ Knowledge Base created successfully")
         except Exception as e:
+            # KB might already exist from previous run
             if "already exists" in str(e).lower():
                 logger.info("⚠️ Knowledge Base already exists, continuing...")
             else:

@@ -3,8 +3,14 @@ name: MindsDB PostgreSQL Monitor CI
 on:
   push:
     branches: ["main"]
+    paths:
+      - "postgres/**"
+      - ".github/workflows/postgres.yml"
   pull_request:
     branches: ["main"]
+    paths:
+      - "postgres/**"
+      - ".github/workflows/postgres.yml"
   workflow_dispatch: {}
 
 permissions:

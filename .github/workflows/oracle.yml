@@ -5,12 +5,12 @@ on:
     branches: ["main"]
     paths:
       - "oracle/**"
-      - ".github/workflows/oracle-ci.yml"
+      - ".github/workflows/oracle.yml"
   pull_request:
     branches: ["main"]
     paths:
       - "oracle/**"
-      - ".github/workflows/oracle-ci.yml"
+      - ".github/workflows/oracle.yml"
   workflow_dispatch: {}
 
 permissions:
