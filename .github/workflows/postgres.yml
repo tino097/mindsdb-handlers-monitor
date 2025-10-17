@@ -3,8 +3,14 @@ name: MindsDB PostgreSQL Monitor CI
 on:
   push:
     branches: ["main"]
+    paths:
+      - "postgres/**"
+      - ".github/workflows/postgres.yml"
   pull_request:
     branches: ["main"]
+    paths:
+      - "postgres/**"
+      - ".github/workflows/postgres.yml"
   workflow_dispatch: {}
 
 permissions:
@@ -13,7 +19,6 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-
     services:
       postgres:
         image: postgres:15
@@ -59,6 +64,7 @@ jobs:
           # Install MindsDB from your fork or main repo
           git clone https://github.com/mindsdb/mindsdb.git
           cd mindsdb
+          git checkout develop
           pip install -e .[postgres]
 
           echo "🚀 Starting MindsDB..."

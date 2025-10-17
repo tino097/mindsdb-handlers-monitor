@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 MINDSDB_API_URL = os.getenv("MINDSDB_API_URL", "http://localhost:47334")
 ORACLE_TPCH_DB = os.getenv("ORACLE_TPCH_DB", "oracle_tpch")
+OLLAMA_API_BASE = os.getenv("OLLAMA_API_BASE", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "tinyllama")
 
 
 def execute_sql_via_mindsdb(sql: str, timeout: int = 300) -> Dict[str, Any]:
@@ -62,12 +64,12 @@ def mindsdb_connection(verify_mindsdb_ready: str) -> str:
         "password": os.getenv("ORACLE_PASSWORD", "SamplePass123"),
         "dsn": f"{os.getenv('ORACLE_HOST', 'localhost')}:{os.getenv('ORACLE_PORT', '1521')}/{os.getenv('ORACLE_DB', 'XEPDB1')}",
     }
-    
+
     param_str = ",\n            ".join(
         f'"{k}": {repr(v) if not isinstance(v, int) else v}'
         for k, v in connection_params.items()
     )
-    
+
     sql = f"""
         CREATE DATABASE {ORACLE_TPCH_DB}
         WITH ENGINE = 'oracle',
@@ -75,20 +77,124 @@ def mindsdb_connection(verify_mindsdb_ready: str) -> str:
             {param_str}
         }};
     """
-    
+
     logger.info(f"🔗 Creating MindsDB Oracle database '{ORACLE_TPCH_DB}' ...")
     try:
         execute_sql_via_mindsdb(sql, timeout=60)
         logger.info("✅ MindsDB Oracle connection created")
-        
+
         test_sql = "SELECT 1 as test_value;"
         execute_sql_via_mindsdb(test_sql, timeout=10)
         logger.info("✅ MindsDB Oracle connection test successful")
-        
+
         yield mindsdb_url
     except Exception as e:
         logger.error(f"❌ Error setting up MindsDB connection: {e}")
         raise
+
+
+@pytest.fixture(scope="session")
+def oracle_regions_kb(mindsdb_connection):
+    """Create Knowledge Base for Oracle REGION table."""
+    logger.info("📚 Creating oracle_regions_kb Knowledge Base...")
+
+    # Step 1: Create the knowledge base (without data)
+    kb_sql = f"""
+    CREATE KNOWLEDGE BASE oracle_regions_kb
+    USING
+        embedding_model = {{
+            "provider": "ollama",
+            "model_name": "{OLLAMA_MODEL}",
+            "base_url": "{OLLAMA_API_BASE}"
+        }},
+        content_columns = ['R_NAME', 'R_COMMENT'],
+        id_column = 'R_REGIONKEY';
+    """
+
+    try:
+        execute_sql_via_mindsdb(kb_sql, timeout=120)
+        logger.info("✅ oracle_regions_kb created")
+
+        # Step 2: Insert data from Oracle table into the knowledge base
+        logger.info("📥 Inserting data into oracle_regions_kb...")
+        insert_sql = f"""
+        INSERT INTO oracle_regions_kb
+        SELECT R_REGIONKEY, R_NAME, R_COMMENT
+        FROM {ORACLE_TPCH_DB}.REGION;
+        """
+        execute_sql_via_mindsdb(insert_sql, timeout=120)
+        logger.info("✅ Data inserted into oracle_regions_kb")
+
+        # Wait for embeddings to be created
+        time.sleep(10)
+
+        # Step 3: Verify the knowledge base has data
+        describe_sql = "SELECT * FROM oracle_regions_kb LIMIT 5;"
+        describe_result = execute_sql_via_mindsdb(describe_sql, timeout=30)
+        assert len(describe_result.get("data", [])) > 0, "KB contains no data"
+        logger.info(
+            f"✅ oracle_regions_kb verified with {len(describe_result['data'])} chunks"
+        )
+
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "already exists" in error_msg:
+            logger.info("⚠️ oracle_regions_kb already exists")
+        else:
+            logger.error(f"❌ Failed to create KB: {e}")
+            raise
+
+
+@pytest.fixture(scope="session")
+def oracle_nations_kb(mindsdb_connection):
+    """Create Knowledge Base for Oracle NATION table."""
+    logger.info("📚 Creating oracle_nations_kb Knowledge Base...")
+
+    # Step 1: Create the knowledge base (without data)
+    kb_sql = f"""
+    CREATE KNOWLEDGE BASE oracle_nations_kb
+    USING
+        embedding_model = {{
+            "provider": "ollama",
+            "model_name": "{OLLAMA_MODEL}",
+            "base_url": "{OLLAMA_API_BASE}"
+        }},
+        content_columns = ['N_NAME', 'N_COMMENT'],
+        id_column = 'N_NATIONKEY';
+    """
+
+    try:
+        execute_sql_via_mindsdb(kb_sql, timeout=120)
+        logger.info("✅ oracle_nations_kb created")
+
+        # Step 2: Insert data from Oracle table
+        logger.info("📥 Inserting data into oracle_nations_kb...")
+        insert_sql = f"""
+        INSERT INTO oracle_nations_kb
+        SELECT N_NATIONKEY, N_NAME, N_COMMENT
+        FROM {ORACLE_TPCH_DB}.NATION;
+        """
+        execute_sql_via_mindsdb(insert_sql, timeout=120)
+        logger.info("✅ Data inserted into oracle_nations_kb")
+
+        # Wait for embeddings to be created
+        time.sleep(15)
+
+        # Step 3: Verify the knowledge base has data
+        describe_sql = "SELECT * FROM oracle_nations_kb LIMIT 5;"
+        describe_result = execute_sql_via_mindsdb(describe_sql, timeout=30)
+        assert len(describe_result.get("data", [])) > 0, "KB contains no data"
+        logger.info(
+            f"✅ oracle_nations_kb verified with {len(describe_result['data'])} chunks"
+        )
+
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "already exists" in error_msg:
+            logger.info("⚠️ oracle_nations_kb already exists")
+        else:
+            logger.error(f"❌ Failed to create KB: {e}")
+            raise
 
 
 @pytest.fixture(autouse=True)
