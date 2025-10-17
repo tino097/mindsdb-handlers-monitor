@@ -7,9 +7,13 @@ on:
     branches: ["main"]
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:15
@@ -305,7 +309,6 @@ jobs:
           git diff --quiet && git diff --staged --quiet || \
             (git commit -m "docs(postgres): Update test results in README [skip ci]" && git push) || \
             echo "No changes to commit"
-
 
       - name: Cleanup
         if: always()

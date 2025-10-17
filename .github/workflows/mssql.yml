@@ -12,6 +12,9 @@ on:
       - ".github/workflows/mssql-tests.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 env:
   MSSQL_SA_PASSWORD: "YourStrong@Passw0rd"
   MSSQL_DB: "TestDB"
