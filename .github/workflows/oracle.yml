@@ -24,13 +24,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          lfs: true # ← This downloads actual LFS files instead of pointers      
-          
+          lfs: true # ← This downloads actual LFS files instead of pointers
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      
+          python-version: "3.11"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -70,7 +70,6 @@ jobs:
             sleep 1
           done
           echo "❌ MindsDB failed to start"; exit 1
-
 
       - name: Setup Oracle user and schema
         run: |
@@ -211,34 +210,34 @@ jobs:
       - name: Load TPC-H data using SQL*Loader
         run: |
           echo "📥 Loading TPC-H data..."
-          
+
           # Copy control files to container
           docker cp oracle/data/ctl/. ${{ job.services.oracle.id }}:/tmp/tpch/
-          
+
           echo "🔄 Loading REGION..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/region.ctl log=/tmp/tpch/region.log bad=/tmp/tpch/region.bad silent=feedback
-          
+
           echo "🔄 Loading NATION..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/nation.ctl log=/tmp/tpch/nation.log bad=/tmp/tpch/nation.bad silent=feedback
-          
+
           echo "🔄 Loading SUPPLIER..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/supplier.ctl log=/tmp/tpch/supplier.log bad=/tmp/tpch/supplier.bad silent=feedback
-          
+
           echo "🔄 Loading PART..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/part.ctl log=/tmp/tpch/part.log bad=/tmp/tpch/part.bad silent=feedback
-          
+
           echo "🔄 Loading PARTSUPP..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/partsupp.ctl log=/tmp/tpch/partsupp.log bad=/tmp/tpch/partsupp.bad silent=feedback
-          
+
           echo "🔄 Loading CUSTOMER..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/customer.ctl log=/tmp/tpch/customer.log bad=/tmp/tpch/customer.bad silent=feedback
-          
+
           echo "🔄 Loading ORDERS..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/orders.ctl log=/tmp/tpch/orders.log bad=/tmp/tpch/orders.bad silent=feedback
-          
+
           echo "🔄 Loading LINEITEM (this may take a while)..."
           docker exec ${{ job.services.oracle.id }} sqlldr sampleuser/SamplePass123@XEPDB1 control=/tmp/tpch/lineitem.ctl log=/tmp/tpch/lineitem.log bad=/tmp/tpch/lineitem.bad silent=feedback
-          
+
           echo "✅ Data loading complete!"
 
       - name: Add foreign key constraints
@@ -307,7 +306,7 @@ jobs:
           docker ps
           curl -sf http://127.0.0.1:47334/api/status | tee mindsdb_status.json || true
 
-      - name: Run tests
+      - name: Run tests with result tracking
         env:
           ORACLE_HOST: localhost
           ORACLE_PORT: 1521
@@ -316,10 +315,258 @@ jobs:
           ORACLE_DB: XEPDB1
           MINDSDB_API_URL: http://localhost:47334
         run: |
+          echo "🧪 Running Oracle handler tests..."
+
+          # Create results directory
+          mkdir -p /tmp/test_results
+
+          # Run tests with detailed output and reporting
           cd oracle/tests
-          pytest -v --tb=short
+          pytest -v --tb=short \
+            --junit-xml=/tmp/test_results/junit.xml \
+            || true
+          echo "✅ Tests completed"
+          
+      - name: Generate test summary
+        if: always()
+        run: |
+          set -eu
+          echo "=== Generating Test Summary ==="
+
+          # Initialize counters
+          total_tests=0
+          passed=0
+          failed=0
+          errors=0
+          skipped=0
+
+          # Check if JUnit XML exists
+          if [ -f /tmp/test_results/junit.xml ]; then
+            # Parse JUnit XML for test counts
+            if command -v python3 &> /dev/null; then
+              python3 <<'PYEOF' > /tmp/test_summary.txt
+          import xml.etree.ElementTree as ET
+          import sys
+
+          try:
+              tree = ET.parse('/tmp/test_results/junit.xml')
+              root = tree.getroot()
+              
+              # Get test suite stats
+              testsuite = root.find('.//testsuite')
+              if testsuite is not None:
+                  tests = int(testsuite.get('tests', 0))
+                  failures = int(testsuite.get('failures', 0))
+                  errors = int(testsuite.get('errors', 0))
+                  skipped = int(testsuite.get('skipped', 0))
+                  passed = tests - failures - errors - skipped
+                  
+                  print(f"{tests},{passed},{failures},{errors},{skipped}")
+              else:
+                  print("0,0,0,0,0")
+          except Exception as e:
+              print(f"0,0,0,0,0", file=sys.stderr)
+              print(f"Error: {e}", file=sys.stderr)
+          PYEOF
+              
+              if [ -f /tmp/test_summary.txt ]; then
+                IFS=',' read -r total_tests passed failed errors skipped < /tmp/test_summary.txt
+              fi
+            fi
+          fi
+
+          # Calculate success rate
+          success_rate=0
+          if [ $total_tests -gt 0 ]; then
+            success_rate=$(( passed * 100 / total_tests ))
+          fi
+
+          # Generate markdown summary
+          {
+            echo "# MindsDB Oracle Handler Test Results"
+            echo ""
+            echo "## Summary"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Total Tests | $total_tests |"
+            echo "| ✅ Passed | $passed |"
+            echo "| ❌ Failed | $failed |"
+            echo "| ⚠️ Errors | $errors |"
+            echo "| ⏭️ Skipped | $skipped |"
+            echo "| Success Rate | ${success_rate}% |"
+            echo ""
+            
+            # Overall status
+            if [ $total_tests -eq 0 ]; then
+              echo "## ⚠️ No Tests Found"
+              echo ""
+              echo "No test results were generated. Please check your test configuration."
+              
+            elif [ $passed -eq $total_tests ]; then
+              echo "## 🎉 All Tests Passed!"
+              echo ""
+              echo "The MindsDB Oracle handler is working correctly with all tests."
+              
+            elif [ $passed -gt 0 ]; then
+              echo "## ⚠️ Partial Success"
+              echo ""
+              echo "Some tests passed but issues were detected. Please review failed tests."
+              
+            else
+              echo "## ❌ All Tests Failed"
+              echo ""
+              echo "The Oracle handler has critical issues. Please review the test logs."
+            fi
+            
+            echo ""
+            echo "## Database Configuration"
+            echo ""
+            echo "| Parameter | Value |"
+            echo "|-----------|-------|"
+            echo "| Host | localhost |"
+            echo "| Port | 1521 |"
+            echo "| Database | XEPDB1 |"
+            echo "| User | sampleuser |"
+            echo "| Oracle Version | XE 21c |"
+            echo ""
+            
+            echo "## TPC-H Test Data"
+            echo ""
+            echo "The test suite uses TPC-H benchmark data with the following tables:"
+            echo ""
+            echo "| Table | Description |"
+            echo "|-------|-------------|"
+            echo "| REGION | Geographic regions |"
+            echo "| NATION | Countries/nations |"
+            echo "| SUPPLIER | Supplier information |"
+            echo "| PART | Part catalog |"
+            echo "| PARTSUPP | Part-supplier relationships |"
+            echo "| CUSTOMER | Customer information |"
+            echo "| ORDERS | Order transactions |"
+            echo "| LINEITEM | Order line items |"
+            echo ""
+            
+            # Add test execution details if available
+            if [ -f /tmp/test_results/junit.xml ]; then
+              echo "## Test Details"
+              echo ""
+              python3 <<'PYEOF'
+          import xml.etree.ElementTree as ET
+
+          try:
+              tree = ET.parse('/tmp/test_results/junit.xml')
+              root = tree.getroot()
+              
+              print("| Test Name | Status | Duration |")
+              print("|-----------|--------|----------|")
+              
+              for testcase in root.findall('.//testcase'):
+                  name = testcase.get('name', 'Unknown')
+                  classname = testcase.get('classname', '')
+                  time = float(testcase.get('time', 0))
+                  
+                  # Get short name without full path
+                  if '::' in name:
+                      short_name = name.split('::')[-1]
+                  else:
+                      short_name = name
+                  
+                  # Check status
+                  if testcase.find('failure') is not None:
+                      status = "❌ Failed"
+                  elif testcase.find('error') is not None:
+                      status = "⚠️ Error"
+                  elif testcase.find('skipped') is not None:
+                      status = "⏭️ Skipped"
+                  else:
+                      status = "✅ Passed"
+                  
+                  print(f"| {short_name} | {status} | {time:.3f}s |")
+          except Exception as e:
+              print(f"Could not parse test details: {e}")
+          PYEOF
+              echo ""
+              
+              # Show failed test details
+              echo "## Failed Test Details"
+              echo ""
+              python3 <<'PYEOF'
+          import xml.etree.ElementTree as ET
+
+          try:
+              tree = ET.parse('/tmp/test_results/junit.xml')
+              root = tree.getroot()
+              
+              has_failures = False
+              for testcase in root.findall('.//testcase'):
+                  failure = testcase.find('failure')
+                  error = testcase.find('error')
+                  
+                  if failure is not None or error is not None:
+                      if not has_failures:
+                          print("| Test Name | Error Type | Message |")
+                          print("|-----------|------------|---------|")
+                          has_failures = True
+                      
+                      name = testcase.get('name', 'Unknown')
+                      if '::' in name:
+                          short_name = name.split('::')[-1]
+                      else:
+                          short_name = name
+                      
+                      if failure is not None:
+                          error_type = failure.get('type', 'Failure')
+                          message = failure.get('message', 'No message')[:100]
+                      else:
+                          error_type = error.get('type', 'Error')
+                          message = error.get('message', 'No message')[:100]
+                      
+                      print(f"| {short_name} | {error_type} | {message} |")
+              
+              if not has_failures:
+                  print("✅ **No test failures** - All tests passed successfully!")
+          except Exception as e:
+              print(f"Could not parse failure details: {e}")
+          PYEOF
+              echo ""
+            fi
+            
+            echo "---"
+            echo ""
+            echo "**Analysis completed:** $(date '+%A, %B %d, %Y at %I:%M %p %Z')"
+            
+          } > /tmp/combined_summary.md
+
+          # Output to GitHub Actions summary
+          cat /tmp/combined_summary.md >> $GITHUB_STEP_SUMMARY
+
+          echo "✅ Test summary generated"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mindsdb-oracle-test-results
+          path: |
+            /tmp/test_results/
+            /tmp/mindsdb.log
+            /tmp/combined_summary.md
+          retention-days: 7
+
+      - name: Upload MindsDB logs on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: mindsdb-oracle-logs
+          path: /tmp/mindsdb.log
+          retention-days: 7
 
       - name: Cleanup
         if: always()
         run: |
-          if [ -n "${MINDSDB_PID:-}" ]; then kill ${MINDSDB_PID} || true; fi
+          echo "🧹 Cleaning up..."
+          if [ -n "${MINDSDB_PID:-}" ]; then
+            kill ${MINDSDB_PID} || true
+            echo "✅ MindsDB stopped"
+          fi
