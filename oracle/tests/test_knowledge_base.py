@@ -63,12 +63,12 @@ class TestOllamaSetup:
 class TestKnowledgeBase:
     """Test MindsDB Knowledge Base functionality with Oracle TPC-H data."""
 
-    def test_create_region_view(self, mindsdb_connection):
+    def test_create_region_view(self):
         """Create a view of Oracle REGION data for the Knowledge Base."""
         logger.info("📊 Creating view of REGION data...")
 
         sql = f"""
-        CREATE OR REPLACE VIEW oracle_regions_view AS
+        CREATE oracle_regions_view AS
         SELECT
             R_REGIONKEY as region_id,
             R_NAME as region_name,
@@ -86,7 +86,7 @@ class TestKnowledgeBase:
         assert len(verify_result["data"]) > 0, "View contains no data"
         logger.info(f"✅ View contains {len(verify_result['data'])} regions")
 
-    def test_create_knowledge_base(self, mindsdb_connection):
+    def test_create_knowledge_base(self):
         """Test creating a Knowledge Base from Oracle data."""
         logger.info("📚 Creating Knowledge Base...")
 
@@ -111,7 +111,7 @@ class TestKnowledgeBase:
         # Wait for KB to be indexed
         time.sleep(10)
 
-    def test_query_kb_list_regions(self, mindsdb_connection):
+    def test_query_kb_list_regions(self):
         """Test querying the Knowledge Base to list regions."""
         logger.info("❓ Asking KB to list regions...")
 
@@ -139,7 +139,7 @@ class TestKnowledgeBase:
         ), f"No regions mentioned in answer. Answer: {answer}"
         logger.info(f"✅ Found regions in answer: {found_regions}")
 
-    def test_query_kb_count_regions(self, mindsdb_connection):
+    def test_query_kb_count_regions(self):
         """Test asking the Knowledge Base about the number of regions."""
         logger.info("❓ Asking KB about number of regions...")
 
@@ -186,7 +186,7 @@ class TestKnowledgeBase:
 class TestCleanup:
     """Cleanup test resources after all tests complete."""
 
-    def test_cleanup_nation_kb(self, mindsdb_connection):
+    def test_cleanup_nation_kb(self):
         """Drop the nation knowledge base."""
         logger.info("🧹 Cleaning up nation KB...")
 
@@ -197,7 +197,7 @@ class TestCleanup:
         except Exception as e:
             logger.warning(f"⚠️ Could not drop nation KB: {e}")
 
-    def test_cleanup_region_kb(self, mindsdb_connection):
+    def test_cleanup_region_kb(self):
         """Drop the region knowledge base."""
         logger.info("🧹 Cleaning up region KB...")
 
@@ -208,7 +208,7 @@ class TestCleanup:
         except Exception as e:
             logger.warning(f"⚠️ Could not drop region KB: {e}")
 
-    def test_cleanup_views(self, mindsdb_connection):
+    def test_cleanup_views(self):
         """Drop the test views."""
         logger.info("🧹 Cleaning up views...")
 
@@ -221,7 +221,7 @@ class TestCleanup:
             except Exception as e:
                 logger.warning(f"⚠️ Could not drop view {view}: {e}")
 
-    def test_cleanup_llm_model(self, mindsdb_connection):
+    def test_cleanup_llm_model(self):
         """Drop the LLM model (optional - might want to keep for other tests)."""
         logger.info("🧹 Cleaning up LLM model...")
 
