@@ -98,15 +98,15 @@ def oracle_regions_kb(mindsdb_connection):
     """Create Knowledge Base for Oracle REGION table."""
     logger.info("📚 Creating oracle_regions_kb Knowledge Base...")
 
+    # Step 1: Create the knowledge base (without data)
     kb_sql = f"""
-    CREATE KNOWLEDGE_BASE oracle_regions_kb
+    CREATE KNOWLEDGE BASE oracle_regions_kb
     USING
         embedding_model = {{
             "provider": "ollama",
             "model_name": "{OLLAMA_MODEL}",
-            "ollama_serve_url": "{OLLAMA_API_BASE}"
+            "base_url": "{OLLAMA_API_BASE}"
         }},
-        storage = {ORACLE_TPCH_DB}.REGION,
         content_columns = ['R_NAME', 'R_COMMENT'],
         id_column = 'R_REGIONKEY';
     """
@@ -115,10 +115,26 @@ def oracle_regions_kb(mindsdb_connection):
         execute_sql_via_mindsdb(kb_sql, timeout=120)
         logger.info("✅ oracle_regions_kb created")
 
-        describe_sql = "DESCRIBE KNOWLEDGE_BASE oracle_regions_kb;"
+        # Step 2: Insert data from Oracle table into the knowledge base
+        logger.info("📥 Inserting data into oracle_regions_kb...")
+        insert_sql = f"""
+        INSERT INTO oracle_regions_kb
+        SELECT R_REGIONKEY, R_NAME, R_COMMENT
+        FROM {ORACLE_TPCH_DB}.REGION;
+        """
+        execute_sql_via_mindsdb(insert_sql, timeout=120)
+        logger.info("✅ Data inserted into oracle_regions_kb")
+
+        # Wait for embeddings to be created
+        time.sleep(10)
+
+        # Step 3: Verify the knowledge base has data
+        describe_sql = "SELECT * FROM oracle_regions_kb LIMIT 5;"
         describe_result = execute_sql_via_mindsdb(describe_sql, timeout=30)
-        assert len(describe_result["data"]) > 0, "KB description returned no data"
-        logger.info("✅ oracle_regions_kb description verified")
+        assert len(describe_result.get("data", [])) > 0, "KB contains no data"
+        logger.info(
+            f"✅ oracle_regions_kb verified with {len(describe_result['data'])} chunks"
+        )
 
     except Exception as e:
         error_msg = str(e).lower()
@@ -134,15 +150,15 @@ def oracle_nations_kb(mindsdb_connection):
     """Create Knowledge Base for Oracle NATION table."""
     logger.info("📚 Creating oracle_nations_kb Knowledge Base...")
 
+    # Step 1: Create the knowledge base (without data)
     kb_sql = f"""
-    CREATE KNOWLEDGE_BASE oracle_nations_kb
+    CREATE KNOWLEDGE BASE oracle_nations_kb
     USING
         embedding_model = {{
             "provider": "ollama",
             "model_name": "{OLLAMA_MODEL}",
-            "ollama_serve_url": "{OLLAMA_API_BASE}"
+            "base_url": "{OLLAMA_API_BASE}"
         }},
-        storage = {ORACLE_TPCH_DB}.NATION,
         content_columns = ['N_NAME', 'N_COMMENT'],
         id_column = 'N_NATIONKEY';
     """
@@ -151,11 +167,26 @@ def oracle_nations_kb(mindsdb_connection):
         execute_sql_via_mindsdb(kb_sql, timeout=120)
         logger.info("✅ oracle_nations_kb created")
 
+        # Step 2: Insert data from Oracle table
+        logger.info("📥 Inserting data into oracle_nations_kb...")
+        insert_sql = f"""
+        INSERT INTO oracle_nations_kb
+        SELECT N_NATIONKEY, N_NAME, N_COMMENT
+        FROM {ORACLE_TPCH_DB}.NATION;
+        """
+        execute_sql_via_mindsdb(insert_sql, timeout=120)
+        logger.info("✅ Data inserted into oracle_nations_kb")
+
+        # Wait for embeddings to be created
         time.sleep(15)
-        describe_sql = "DESCRIBE KNOWLEDGE_BASE oracle_nations_kb;"
+
+        # Step 3: Verify the knowledge base has data
+        describe_sql = "SELECT * FROM oracle_nations_kb LIMIT 5;"
         describe_result = execute_sql_via_mindsdb(describe_sql, timeout=30)
-        assert len(describe_result["data"]) > 0, "KB description returned no data"
-        logger.info("✅ oracle_nations_kb description verified")
+        assert len(describe_result.get("data", [])) > 0, "KB contains no data"
+        logger.info(
+            f"✅ oracle_nations_kb verified with {len(describe_result['data'])} chunks"
+        )
 
     except Exception as e:
         error_msg = str(e).lower()

@@ -63,76 +63,54 @@ class TestOllamaSetup:
 class TestKnowledgeBase:
     """Test MindsDB Knowledge Base functionality with Oracle TPC-H data."""
 
-    def test_query_kb_list_regions(self, mindsdb_connection):
+    def test_query_kb_list_regions(self, oracle_regions_kb, mindsdb_connection):
         """Test querying the Knowledge Base to list regions."""
         logger.info("❓ Asking KB to list regions...")
 
         sql = """
-        SELECT answer
+        SELECT chunk_content, distance, relevance
         FROM oracle_regions_kb
-        WHERE question = 'List all the regions in the database.';
+        WHERE content = 'What are all the regions?'
+        LIMIT 10;
         """
 
         result = execute_sql_via_mindsdb(sql, timeout=90)
         assert "data" in result, "No data returned from Knowledge Base"
         assert len(result["data"]) > 0, "Empty response from Knowledge Base"
 
-        answer = result["data"][0].get("answer", "").lower()
-        logger.info(f"✅ KB Answer: {answer[:200]}")
+        logger.info(f"✅ KB returned {len(result['data'])} results")
 
-        # Check if answer mentions some regions (TPC-H has: AFRICA, AMERICA, ASIA, EUROPE, MIDDLE EAST)
-        assert len(answer) > 20, "Answer is too short"
+        # Check if regions are in the results
+        all_content = " ".join(
+            [str(row.get("chunk_content", "")).lower() for row in result["data"]]
+        )
+        regions = ["africa", "america", "asia", "europe"]
+        found_regions = [r for r in regions if r in all_content]
+        assert len(found_regions) > 0, f"No regions found."
 
-        # At least one region should be mentioned
-        regions = ["africa", "america", "asia", "europe", "middle east"]
-        found_regions = [r for r in regions if r in answer]
-        assert (
-            len(found_regions) > 0
-        ), f"No regions mentioned in answer. Answer: {answer}"
-        logger.info(f"✅ Found regions in answer: {found_regions}")
-
-    def test_query_kb_count_regions(self, mindsdb_connection):
-        """Test asking the Knowledge Base about the number of regions."""
-        logger.info("❓ Asking KB about number of regions...")
+    def test_query_kb_nations_by_region(self, oracle_regions_kb, mindsdb_connection):
+        """Test querying the Knowledge Base for nations in a specific region."""
+        logger.info("❓ Asking KB for nations in 'Europe' region...")
 
         sql = """
-        SELECT answer
-        FROM oracle_regions_kb
-        WHERE question = 'How many regions are in the database? Answer with just the number.';
+            SELECT chunk_content, distance, relevance
+            FROM oracle_regions_kb
+            WHERE content = 'Which nations are in the Europe region?'
+            LIMIT 10;
         """
-
         result = execute_sql_via_mindsdb(sql, timeout=90)
-        assert "data" in result
-        assert len(result["data"]) > 0
+        assert "data" in result, "No data returned from Knowledge Base"
+        assert len(result["data"]) > 0, "Empty response from Knowledge Base"
 
-        answer = result["data"][0].get("answer", "").lower()
-        logger.info(f"✅ KB Answer: {answer}")
+        logger.info(f"✅ KB returned {len(result['data'])} results")
 
-        # TPC-H has exactly 5 regions
-        # The answer might say "5" or "five" or be in a sentence
-        assert (
-            "5" in answer or "five" in answer
-        ), f"Answer doesn't mention correct count. Answer: {answer}"
-
-    def test_query_kb_region_description(self, mindsdb_connection):
-        """Test asking about a specific region."""
-        logger.info("❓ Asking KB about a specific region...")
-
-        sql = """
-        SELECT answer
-        FROM oracle_regions_kb
-        WHERE question = 'What is the description of the ASIA region?';
-        """
-
-        result = execute_sql_via_mindsdb(sql, timeout=90)
-        assert "data" in result
-        assert len(result["data"]) > 0
-
-        answer = result["data"][0].get("answer", "")
-        logger.info(f"✅ KB Answer: {answer[:200]}")
-
-        # Should mention something about Asia or Eastern region
-        assert len(answer) > 10, "Answer is too short or empty"
+        # Check if European nations are in the results
+        all_content = " ".join(
+            [str(row.get("chunk_content", "")).lower() for row in result["data"]]
+        )
+        european_nations = ["france", "germany", "italy", "spain", "uk"]
+        found_nations = [n for n in european_nations if n in all_content]
+        assert len(found_nations) > 0, f"No European nations found."
 
 
 class TestCleanup:
