@@ -5,7 +5,7 @@ Automated testing for the MindsDB PostgreSQL database handler.
 <!-- TEST_RESULTS_START -->
 ## 📊 Latest Test Results
 
-*Test results will be automatically updated here after each workflow run.*
+⚠️ No test data available
 
 <!-- TEST_RESULTS_END -->
 

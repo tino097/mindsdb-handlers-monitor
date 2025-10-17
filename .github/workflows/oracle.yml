@@ -1,12 +1,12 @@
 name: MindsDB with Oracle XE Monitor CI
 
 on:
-  push: 
+  push:
     branches: ["main"]
     paths:
       - "oracle/**"
       - ".github/workflows/oracle-ci.yml"
-  pull_request: 
+  pull_request:
     branches: ["main"]
     paths:
       - "oracle/**"
@@ -337,7 +337,7 @@ jobs:
             --junit-xml=/tmp/test_results/junit.xml \
             || true
           echo "✅ Tests completed"
-          
+
       - name: Generate test summary
         if: always()
         run: |
@@ -565,13 +565,25 @@ jobs:
             /tmp/combined_summary.md
           retention-days: 7
 
-      - name: Upload MindsDB logs on failure
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: mindsdb-oracle-logs
-          path: /tmp/mindsdb.log
-          retention-days: 7
+      - name: Update oracle README with test results
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          echo "📝 Updating oracle/README.md with latest test results..."
+          python3 .github/scripts/update_readme.py \
+            /tmp/test_results/junit.xml \
+            oracle/README.md \
+            "Oracle" \
+            oracle.yml
+
+      - name: Commit README changes
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add oracle/README.md || true
+          git diff --quiet && git diff --staged --quiet || \
+            (git commit -m "docs(oracle): Update test results in README [skip ci]" && git push) || \
+            echo "No changes to commit"
 
       - name: Cleanup
         if: always()
