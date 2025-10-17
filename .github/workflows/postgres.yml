@@ -107,7 +107,7 @@ jobs:
 
           # Run tests with detailed output
           cd postgres/tests
-          pytest -v --tb=short --junit-xml=/tmp/test_results/junit.xml --html=/tmp/test_results/report.html --self-contained-html || true
+          pytest -v --tb=short --junit-xml=/tmp/test_results/junit.xml || true
 
           echo "✅ Tests completed"
 
