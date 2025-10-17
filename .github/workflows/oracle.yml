@@ -576,10 +576,10 @@ jobs:
                       
                       if failure is not None:
                           error_type = failure.get('type', 'Failure')
-                          message = failure.get('message', 'No message')[:100]
+                          message = failure.get('message', 'No message')
                       else:
                           error_type = error.get('type', 'Error')
-                          message = error.get('message', 'No message')[:100]
+                          message = error.get('message', 'No message')
                       
                       print(f"| {short_name} | {error_type} | {message} |")
               
