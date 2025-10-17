@@ -63,55 +63,7 @@ class TestOllamaSetup:
 class TestKnowledgeBase:
     """Test MindsDB Knowledge Base functionality with Oracle TPC-H data."""
 
-    def test_create_region_view(self):
-        """Create a view of Oracle REGION data for the Knowledge Base."""
-        logger.info("📊 Creating view of REGION data...")
-
-        sql = f"""
-        CREATE oracle_regions_view AS
-        SELECT
-            R_REGIONKEY as region_id,
-            R_NAME as region_name,
-            R_COMMENT as description
-        FROM {ORACLE_TPCH_DB}.REGION;
-        """
-
-        result = execute_sql_via_mindsdb(sql, timeout=60)
-        logger.info("✅ View created successfully")
-        assert "status" in result and result["status"] == "OK"
-        # Verify view has data
-        verify_sql = "SELECT * FROM oracle_regions_view LIMIT 5;"
-        verify_result = execute_sql_via_mindsdb(verify_sql, timeout=30)
-        assert "data" in verify_result
-        assert len(verify_result["data"]) > 0, "View contains no data"
-        logger.info(f"✅ View contains {len(verify_result['data'])} regions")
-
-    def test_create_knowledge_base(self):
-        """Test creating a Knowledge Base from Oracle data."""
-        logger.info("📚 Creating Knowledge Base...")
-
-        kb_sql = """
-        CREATE KNOWLEDGE BASE oracle_regions_kb
-        USING
-            model = ollama_tinyllama,
-            storage = oracle_regions_view;
-        """
-
-        try:
-            result = execute_sql_via_mindsdb(kb_sql, timeout=120)
-            logger.info("✅ Knowledge Base created successfully")
-            assert "status" in result and result["status"] == "OK"
-        except Exception as e:
-            # KB might already exist from previous run
-            if "already exists" in str(e).lower():
-                logger.info("⚠️ Knowledge Base already exists, continuing...")
-            else:
-                raise
-
-        # Wait for KB to be indexed
-        time.sleep(10)
-
-    def test_query_kb_list_regions(self):
+    def test_query_kb_list_regions(self, mindsdb_connection):
         """Test querying the Knowledge Base to list regions."""
         logger.info("❓ Asking KB to list regions...")
 
@@ -139,7 +91,7 @@ class TestKnowledgeBase:
         ), f"No regions mentioned in answer. Answer: {answer}"
         logger.info(f"✅ Found regions in answer: {found_regions}")
 
-    def test_query_kb_count_regions(self):
+    def test_query_kb_count_regions(self, mindsdb_connection):
         """Test asking the Knowledge Base about the number of regions."""
         logger.info("❓ Asking KB about number of regions...")
 
@@ -186,7 +138,7 @@ class TestKnowledgeBase:
 class TestCleanup:
     """Cleanup test resources after all tests complete."""
 
-    def test_cleanup_nation_kb(self):
+    def test_cleanup_nation_kb(self, mindsdb_connection):
         """Drop the nation knowledge base."""
         logger.info("🧹 Cleaning up nation KB...")
 
@@ -197,7 +149,7 @@ class TestCleanup:
         except Exception as e:
             logger.warning(f"⚠️ Could not drop nation KB: {e}")
 
-    def test_cleanup_region_kb(self):
+    def test_cleanup_region_kb(self, mindsdb_connection):
         """Drop the region knowledge base."""
         logger.info("🧹 Cleaning up region KB...")
 
@@ -208,7 +160,7 @@ class TestCleanup:
         except Exception as e:
             logger.warning(f"⚠️ Could not drop region KB: {e}")
 
-    def test_cleanup_views(self):
+    def test_cleanup_views(self, mindsdb_connection):
         """Drop the test views."""
         logger.info("🧹 Cleaning up views...")
 
@@ -221,7 +173,7 @@ class TestCleanup:
             except Exception as e:
                 logger.warning(f"⚠️ Could not drop view {view}: {e}")
 
-    def test_cleanup_llm_model(self):
+    def test_cleanup_llm_model(self, mindsdb_connection):
         """Drop the LLM model (optional - might want to keep for other tests)."""
         logger.info("🧹 Cleaning up LLM model...")
 

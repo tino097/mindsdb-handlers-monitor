@@ -114,6 +114,12 @@ def oracle_regions_kb(mindsdb_connection):
     try:
         execute_sql_via_mindsdb(kb_sql, timeout=120)
         logger.info("✅ oracle_regions_kb created")
+
+        describe_sql = "DESCRIBE KNOWLEDGE_BASE oracle_regions_kb;"
+        describe_result = execute_sql_via_mindsdb(describe_sql, timeout=30)
+        assert len(describe_result["data"]) > 0, "KB description returned no data"
+        logger.info("✅ oracle_regions_kb description verified")
+
     except Exception as e:
         error_msg = str(e).lower()
         if "already exists" in error_msg:
@@ -121,18 +127,6 @@ def oracle_regions_kb(mindsdb_connection):
         else:
             logger.error(f"❌ Failed to create KB: {e}")
             raise
-
-    time.sleep(15)
-    yield "oracle_regions_kb"
-
-    # Cleanup
-    logger.info("🧹 Cleaning up oracle_regions_kb...")
-    try:
-        execute_sql_via_mindsdb(
-            "DROP KNOWLEDGE_BASE IF EXISTS oracle_regions_kb;", timeout=30
-        )
-    except Exception as e:
-        logger.warning(f"⚠️ Could not drop oracle_regions_kb: {e}")
 
 
 @pytest.fixture(scope="session")
@@ -156,6 +150,13 @@ def oracle_nations_kb(mindsdb_connection):
     try:
         execute_sql_via_mindsdb(kb_sql, timeout=120)
         logger.info("✅ oracle_nations_kb created")
+
+        time.sleep(15)
+        describe_sql = "DESCRIBE KNOWLEDGE_BASE oracle_nations_kb;"
+        describe_result = execute_sql_via_mindsdb(describe_sql, timeout=30)
+        assert len(describe_result["data"]) > 0, "KB description returned no data"
+        logger.info("✅ oracle_nations_kb description verified")
+
     except Exception as e:
         error_msg = str(e).lower()
         if "already exists" in error_msg:
@@ -163,18 +164,6 @@ def oracle_nations_kb(mindsdb_connection):
         else:
             logger.error(f"❌ Failed to create KB: {e}")
             raise
-
-    time.sleep(15)
-    yield "oracle_nations_kb"
-
-    # Cleanup
-    logger.info("🧹 Cleaning up oracle_nations_kb...")
-    try:
-        execute_sql_via_mindsdb(
-            "DROP KNOWLEDGE_BASE IF EXISTS oracle_nations_kb;", timeout=30
-        )
-    except Exception as e:
-        logger.warning(f"⚠️ Could not drop oracle_nations_kb: {e}")
 
 
 @pytest.fixture(autouse=True)
