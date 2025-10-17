@@ -116,7 +116,7 @@ jobs:
           git clone https://github.com/tino097/mindsdb.git
           cd mindsdb
           git checkout develop
-          pip install -e .[all,oracle]
+          pip install -e .[oracle]
           echo "🚀 Starting MindsDB..."
           MINDSDB_NO_STUDIO=1 python -m mindsdb --api http --verbose &
           echo "MINDSDB_PID=$!" >> $GITHUB_ENV
