@@ -69,7 +69,7 @@ class TestKnowledgeBase:
 
         sql = f"""
         CREATE OR REPLACE VIEW oracle_regions_view AS
-        SELECT 
+        SELECT
             R_REGIONKEY as region_id,
             R_NAME as region_name,
             R_COMMENT as description
@@ -78,7 +78,7 @@ class TestKnowledgeBase:
 
         result = execute_sql_via_mindsdb(sql, timeout=60)
         logger.info("✅ View created successfully")
-
+        assert "status" in result and result["status"] == "OK"
         # Verify view has data
         verify_sql = "SELECT * FROM oracle_regions_view LIMIT 5;"
         verify_result = execute_sql_via_mindsdb(verify_sql, timeout=30)
@@ -100,6 +100,7 @@ class TestKnowledgeBase:
         try:
             result = execute_sql_via_mindsdb(kb_sql, timeout=120)
             logger.info("✅ Knowledge Base created successfully")
+            assert "status" in result and result["status"] == "OK"
         except Exception as e:
             # KB might already exist from previous run
             if "already exists" in str(e).lower():
@@ -183,7 +184,7 @@ class TestKnowledgeBase:
 
 
 class TestCleanup:
-    """Cleanup test resources."""
+    """Cleanup test resources after all tests complete."""
 
     def test_cleanup_nation_kb(self, mindsdb_connection):
         """Drop the nation knowledge base."""
