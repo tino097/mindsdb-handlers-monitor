@@ -21,7 +21,7 @@ This repository provides **automated testing and continuous monitoring** for [Mi
 
 | Database | Status | Tests | Documentation |
 |----------|--------|-------|---------------|
-| **PostgreSQL** | [![PostgreSQL CI](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/postgres.yml/badge.svg)](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/postgres.yml) | 50+ tests | [📝 Docs](./postgresql/README.md) |
+| **PostgreSQL** | [![PostgreSQL CI](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/postgres.yml/badge.svg)](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/postgres.yml) | 27 tests | [📝 Docs](./postgresql/README.md) |
 | **Oracle XE** | [![Oracle CI](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/oracle.yml/badge.svg)](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/oracle.yml) | 22 TPC-H queries | [📝 Docs](./oracle/README.md) |
 | **MS SQL Server** | [![MS SQL CI](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/mssql.yml/badge.svg)](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/mssql.yml) | 31 tests | [📝 Docs](./mssql/README.md) |
 
