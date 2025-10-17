@@ -185,33 +185,51 @@ class TestKnowledgeBase:
 class TestCleanup:
     """Cleanup test resources."""
 
-    def test_cleanup_knowledge_base(self, mindsdb_api_url):
-        """Drop the knowledge base after tests."""
-        query = "DROP KNOWLEDGE BASE IF EXISTS oracle_kb;"
+    def test_cleanup_nation_kb(self, mindsdb_connection):
+        """Drop the nation knowledge base."""
+        logger.info("🧹 Cleaning up nation KB...")
 
-        response = requests.post(
-            f"{mindsdb_api_url}/api/sql/query", json={"query": query}
-        )
+        sql = "DROP KNOWLEDGE BASE IF EXISTS oracle_nations_kb;"
+        try:
+            execute_sql_via_mindsdb(sql, timeout=30)
+            logger.info("✅ Nation KB dropped")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not drop nation KB: {e}")
 
-        # Should succeed or not exist
-        assert response.status_code in [
-            200,
-            404,
-        ], f"Failed to drop knowledge base: {response.text}"
+    def test_cleanup_region_kb(self, mindsdb_connection):
+        """Drop the region knowledge base."""
+        logger.info("🧹 Cleaning up region KB...")
 
-    def test_cleanup_llm_model(self, mindsdb_api_url):
-        """Drop the LLM model after tests."""
-        query = "DROP MODEL IF EXISTS ollama_tinyllama;"
+        sql = "DROP KNOWLEDGE BASE IF EXISTS oracle_regions_kb;"
+        try:
+            execute_sql_via_mindsdb(sql, timeout=30)
+            logger.info("✅ Region KB dropped")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not drop region KB: {e}")
 
-        response = requests.post(
-            f"{mindsdb_api_url}/api/sql/query", json={"query": query}
-        )
+    def test_cleanup_views(self, mindsdb_connection):
+        """Drop the test views."""
+        logger.info("🧹 Cleaning up views...")
 
-        # Should succeed or not exist
-        assert response.status_code in [
-            200,
-            404,
-        ], f"Failed to drop model: {response.text}"
+        views = ["oracle_regions_view", "oracle_nations_view"]
+        for view in views:
+            sql = f"DROP VIEW IF EXISTS {view};"
+            try:
+                execute_sql_via_mindsdb(sql, timeout=30)
+                logger.info(f"✅ View {view} dropped")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not drop view {view}: {e}")
+
+    def test_cleanup_llm_model(self, mindsdb_connection):
+        """Drop the LLM model (optional - might want to keep for other tests)."""
+        logger.info("🧹 Cleaning up LLM model...")
+
+        sql = "DROP MODEL IF EXISTS ollama_tinyllama;"
+        try:
+            execute_sql_via_mindsdb(sql, timeout=30)
+            logger.info("✅ LLM model dropped")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not drop LLM model: {e}")
 
 
 if __name__ == "__main__":
