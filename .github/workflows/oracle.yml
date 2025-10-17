@@ -62,6 +62,54 @@ jobs:
           done
           test "$(docker inspect -f '{{.State.Health.Status}}' "$ID")" = "healthy" || (docker logs "$ID" | tail -n 200; exit 1)
 
+      - name: 🤖 Install and start Ollama
+        run: |
+          echo "📦 Installing Ollama..."
+          curl -fsSL https://ollama.com/install.sh | sh
+          
+          echo "🚀 Starting Ollama server..."
+          ollama serve > /tmp/ollama.log 2>&1 &
+          OLLAMA_PID=$!
+          echo "OLLAMA_PID=$OLLAMA_PID" >> $GITHUB_ENV
+          
+          echo "⏳ Waiting for Ollama to be ready..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
+              echo "✅ Ollama is ready!"
+              break
+            fi
+            echo "[$i] Ollama not ready yet..."
+            sleep 2
+          done
+          
+          # Verify Ollama is running
+          if ! curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
+            echo "❌ Ollama failed to start"
+            cat /tmp/ollama.log
+            exit 1
+          fi
+
+      - name: 📥 Pull TinyLlama model
+        run: |
+          echo "📥 Pulling TinyLlama model (smallest option, ~637MB)..."
+          ollama pull tinyllama
+          
+          echo "✅ Model pulled successfully"
+          
+          # List available models
+          echo "📋 Available models:"
+          ollama list
+
+      - name: 🧪 Test Ollama with sample prompt
+        run: |
+          echo "🧪 Testing Ollama with a simple prompt..."
+          
+          # Test with a simple question
+          response=$(ollama run tinyllama "What is 2+2? Answer with just the number." --verbose=false 2>/dev/null | head -1)
+          
+          echo "Response: $response"
+          echo "✅ Ollama is working correctly"
+
       - name: Install & start MindsDB
         run: |
           python -m pip install --upgrade pip
