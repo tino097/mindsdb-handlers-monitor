@@ -22,8 +22,8 @@
 | **⚠️ Errors** | 0 |
 | **⏭️ Skipped** | 0 |
 | **Success Rate** | 100.0% |
-| **Duration** | 1.46s |
-| **Last Updated** | 2025-10-20 20:34 UTC |
+| **Duration** | 1.51s |
+| **Last Updated** | 2025-10-20 20:38 UTC |
 
 [📋 View detailed results](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/postgres.yml)
 
