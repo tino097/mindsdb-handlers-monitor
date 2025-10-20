@@ -306,4 +306,8 @@ jobs:
           if [ -n "${MINDSDB_PID:-}" ]; then
             kill ${MINDSDB_PID} || true
             echo "✅ MindsDB stopped"
+<<<<<<< HEAD
           fi
+=======
+          fi
+>>>>>>> origin/main
