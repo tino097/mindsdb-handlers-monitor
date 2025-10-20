@@ -3,8 +3,14 @@ name: Files Handler Monitor CI
 on:
   push:
     branches: ["main"]
+    paths:
+      - "files/**"
+      - ".github/workflows/files.yml"
   pull_request:
     branches: ["main"]
+    paths:
+      - "files/**"
+      - ".github/workflows/files.yml"
   workflow_dispatch: {}
 
 permissions:
