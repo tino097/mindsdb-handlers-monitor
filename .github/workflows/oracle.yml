@@ -65,7 +65,7 @@ jobs:
       - name: Install & start MindsDB
         run: |
           python -m pip install --upgrade pip
-          git clone https://github.com/tino097/mindsdb.git
+          git clone https://github.com/mindsdb/mindsdb.git
           cd mindsdb
           git checkout develop
           pip install -e .[all,oracle]
