@@ -108,9 +108,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
 
-          # Install MindsDB from main repo
-          git clone https://github.com/mindsdb/mindsdb.git
+          # Install MindsDB from richardokonicha's fork with Elasticsearch handler updates
+          git clone https://github.com/richardokonicha/mindsdb.git
           cd mindsdb
+          git checkout feature/elasticsearch-handler-update
           pip install -e .[elasticsearch]
 
           echo "🚀 Starting MindsDB..."
