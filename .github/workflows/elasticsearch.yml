@@ -62,15 +62,11 @@ jobs:
         run: |
           echo "📦 Loading official Kibana sample datasets..."
 
-          # Get the network name that the Elasticsearch service is on
-          NETWORK=$(docker inspect $(docker ps -q -f "ancestor=elasticsearch:8.11.0") | jq -r '.[0].NetworkSettings.Networks | keys[0]')
-          echo "Using network: $NETWORK"
-
           # Start Kibana temporarily to load official sample data
+          # Use --network host so Kibana can access Elasticsearch on localhost:9200
           docker run -d --name kibana-temp \
-            --network "$NETWORK" \
+            --network host \
             -e ELASTICSEARCH_HOSTS=http://localhost:9200 \
-            -p 5601:5601 \
             docker.elastic.co/kibana/kibana:8.11.0
 
           echo "⏳ Waiting for Kibana to start..."

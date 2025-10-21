@@ -51,12 +51,17 @@ This test suite validates the MindsDB Elasticsearch handler, including:
 
 ## Test Data
 
-The tests use Kibana sample datasets when available:
-- `kibana_sample_data_flights` - Flight data with nested fields
-- `kibana_sample_data_ecommerce` - E-commerce data with arrays
-- `kibana_sample_data_logs` - Log data with various field types
+**Note**: Unlike SQL-based handlers, this handler uses **official Kibana sample datasets** loaded via API instead of static SQL/data files.
 
-If Kibana datasets are not available, tests use mock data with representative Elasticsearch structures.
+The tests use Kibana sample datasets:
+- `kibana_sample_data_flights` - 13,059 documents with geo-point fields and nested structures
+- `kibana_sample_data_ecommerce` - 4,675 documents with array fields and nested objects
+- `kibana_sample_data_logs` - 14,074 documents with various field types
+
+These datasets are loaded dynamically:
+- **CI/CD**: GitHub Actions workflow starts Kibana temporarily and loads via API
+- **Local**: Use Kibana API or load manually (see instructions below)
+- **Tests**: Use pytest fixtures that connect to running Elasticsearch with sample data
 
 ## Running Tests Locally
 
