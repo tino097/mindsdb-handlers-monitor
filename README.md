@@ -24,6 +24,7 @@ This repository provides **automated testing and continuous monitoring** for [Mi
 | **PostgreSQL** | [![PostgreSQL CI](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/postgres.yml/badge.svg)](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/postgres.yml) | 41 tests | [📝 Docs](./postgres/README.md) |
 | **Oracle XE** | [![Oracle CI](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/oracle.yml/badge.svg)](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/oracle.yml) | 27 tests | [📝 Docs](./oracle/README.md) |
 | **MS SQL Server** | [![MS SQL CI](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/mssql.yml/badge.svg)](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/mssql.yml) | 31 tests | [📝 Docs](./mssql/README.md) |
+| **Elasticsearch** | [![Elasticsearch CI](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/elasticsearch.yml/badge.svg)](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/elasticsearch.yml) | 48 tests | [📝 Docs](./elasticsearch/README.md) |
 
 ## ✨ Features
 
@@ -170,6 +171,7 @@ Each database handler has detailed documentation:
 - **[PostgreSQL Handler](./postgresql/README.md)** - Setup, tests, and examples
 - **[Oracle XE Handler](./oracle/README.md)** - TPC-H benchmarks and Oracle-specific features
 - **[MS SQL Server Handler](./mssql/README.md)** - Docker setup and MindsDB-compatible queries
+- **[Elasticsearch Handler](./elasticsearch/README.md)** - NoSQL search, Data Catalog support, and Kibana datasets
 
 ## 📜 License
 
