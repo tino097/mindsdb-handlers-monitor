@@ -19,7 +19,6 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-
     services:
       postgres:
         image: postgres:15
@@ -65,6 +64,7 @@ jobs:
           # Install MindsDB from your fork or main repo
           git clone https://github.com/mindsdb/mindsdb.git
           cd mindsdb
+          git checkout develop
           pip install -e .[postgres]
 
           echo "🚀 Starting MindsDB..."
