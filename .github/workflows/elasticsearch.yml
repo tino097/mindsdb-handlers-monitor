@@ -2,17 +2,16 @@ name: MindsDB Elasticsearch Monitor CI
 
 on:
   push:
+    branches: ["main"]
+    paths:
+      - "elasticsearch/**"
+      - ".github/workflows/elasticsearch.yml"
   pull_request:
-  workflow_dispatch:
-    inputs:
-      mindsdb_pr:
-        description: 'MindsDB PR number to test (e.g., 12345). Leave empty to use main branch.'
-        required: false
-        type: string
-      mindsdb_fork:
-        description: 'MindsDB fork owner (e.g., richardokonicha). Leave empty to use mindsdb/mindsdb.'
-        required: false
-        type: string
+    branches: ["main"]
+    paths:
+      - "elasticsearch/**"
+      - ".github/workflows/elasticsearch.yml"
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -116,25 +115,9 @@ jobs:
       - name: Install & start MindsDB
         run: |
           python -m pip install --upgrade pip
-
-          # Determine which MindsDB repo and branch to use
-          if [ -n "${{ github.event.inputs.mindsdb_pr }}" ]; then
-            # Test specific PR
-            FORK="${{ github.event.inputs.mindsdb_fork }}"
-            FORK="${FORK:-mindsdb}"
-            echo "🔍 Testing MindsDB PR #${{ github.event.inputs.mindsdb_pr }} from ${FORK}/mindsdb"
-
-            git clone https://github.com/${FORK}/mindsdb.git
-            cd mindsdb
-            gh pr checkout ${{ github.event.inputs.mindsdb_pr }}
-          else
-            # Use default: richardokonicha's fork for testing
-            echo "📦 Installing MindsDB from richardokonicha/mindsdb (feature/elasticsearch-handler-update)"
-            git clone https://github.com/richardokonicha/mindsdb.git
-            cd mindsdb
-            git checkout feature/elasticsearch-handler-update
-          fi
-
+          git clone https://github.com/richardokonicha/mindsdb.git
+          cd mindsdb
+          git checkout feature/elasticsearch-handler-update
           pip install -e .[elasticsearch]
 
           echo "🚀 Starting MindsDB..."
