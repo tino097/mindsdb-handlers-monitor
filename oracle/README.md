@@ -22,8 +22,8 @@
 | **⚠️ Errors** | 2 |
 | **⏭️ Skipped** | 0 |
 | **Success Rate** | 94.4% |
-| **Duration** | 3.65s |
-| **Last Updated** | 2025-10-21 08:25 UTC |
+| **Duration** | 3.86s |
+| **Last Updated** | 2025-10-23 20:59 UTC |
 
 [📋 View detailed results](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/oracle.yml)
 
