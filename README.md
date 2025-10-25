@@ -115,24 +115,6 @@ Contributions are welcome! Here's how you can help:
 - Update documentation when adding features
 - Ensure CI passes before submitting PR
 
-## 📈 Monitoring & Reports
-
-### GitHub Actions
-
-All tests run automatically via GitHub Actions:
-
-- **Trigger**: On push to main/develop or pull request
-- **Environment**: Fresh Docker containers for each run
-- **Duration**: Typically 5-10 minutes per handler
-- **Artifacts**: Coverage reports and test logs
-
-### Coverage Reports
-
-Test coverage is tracked and reported for each handler:
-
-- View coverage in GitHub Actions artifacts
-- Local coverage: `pytest tests/ --cov=. --cov-report=html`
-
 ## 🔗 Useful Links
 
 - **MindsDB Documentation**: <https://docs.mindsdb.com/>
