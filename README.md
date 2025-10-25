@@ -88,29 +88,6 @@ database/
 └── requirements.txt          # Python dependencies
 ```
 
-## 🎓 What Gets Tested?
-
-### PostgreSQL Handler
-
-- **50+ test cases** covering schemas, complex queries, and performance
-- Tests for multi-schema support (public, sales, inventory, analytics)
-- Window functions, CTEs, and advanced PostgreSQL features
-- Full e-commerce dataset with realistic relationships
-
-### Oracle XE Handler
-
-- **All 22 TPC-H benchmark queries**
-- Oracle-specific features (ROWNUM, TO_DATE, SYSDATE)
-- Complex multi-table joins and aggregations
-- Performance validation with standard dataset
-
-### MS SQL Server Handler
-
-- **31 comprehensive tests** including TPC-H subset
-- MindsDB-compatible SQL syntax (LIMIT instead of TOP)
-- String, numeric, and date operations
-- Subqueries, CASE statements, and window functions
-
 ## 🤝 Contributing
 
 Contributions are welcome! Here's how you can help:
@@ -163,15 +140,6 @@ Test coverage is tracked and reported for each handler:
 - **Oracle Handler**: <https://docs.mindsdb.com/integrations/data-integrations/oracle>
 - **MS SQL Handler**: <https://docs.mindsdb.com/integrations/data-integrations/microsoft-sql-server>
 - **TPC-H Benchmark**: <http://www.tpc.org/tpch/>
-
-## 📝 Individual Handler Documentation
-
-Each database handler has detailed documentation:
-
-- **[PostgreSQL Handler](./postgresql/README.md)** - Setup, tests, and examples
-- **[Oracle XE Handler](./oracle/README.md)** - TPC-H benchmarks and Oracle-specific features
-- **[MS SQL Server Handler](./mssql/README.md)** - Docker setup and MindsDB-compatible queries
-- **[Elasticsearch Handler](./elasticsearch/README.md)** - NoSQL search, Data Catalog support, and Kibana datasets
 
 ## 📜 License
 
