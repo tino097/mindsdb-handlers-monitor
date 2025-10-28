@@ -24,6 +24,7 @@ This repository provides **automated testing and continuous monitoring** for [Mi
 | **PostgreSQL** | [![PostgreSQL CI](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/postgres.yml/badge.svg)](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/postgres.yml) | 41 tests | [📝 Docs](./postgres/README.md) |
 | **Oracle XE** | [![Oracle CI](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/oracle.yml/badge.svg)](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/oracle.yml) | 27 tests | [📝 Docs](./oracle/README.md) |
 | **MS SQL Server** | [![MS SQL CI](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/mssql.yml/badge.svg)](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/mssql.yml) | 31 tests | [📝 Docs](./mssql/README.md) |
+| **Elasticsearch** | [![Elasticsearch CI](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/elasticsearch.yml/badge.svg)](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/elasticsearch.yml) | 48 tests | [📝 Docs](./elasticsearch/README.md) |
 
 ## ✨ Features
 
@@ -87,29 +88,6 @@ database/
 └── requirements.txt          # Python dependencies
 ```
 
-## 🎓 What Gets Tested?
-
-### PostgreSQL Handler
-
-- **50+ test cases** covering schemas, complex queries, and performance
-- Tests for multi-schema support (public, sales, inventory, analytics)
-- Window functions, CTEs, and advanced PostgreSQL features
-- Full e-commerce dataset with realistic relationships
-
-### Oracle XE Handler
-
-- **All 22 TPC-H benchmark queries**
-- Oracle-specific features (ROWNUM, TO_DATE, SYSDATE)
-- Complex multi-table joins and aggregations
-- Performance validation with standard dataset
-
-### MS SQL Server Handler
-
-- **31 comprehensive tests** including TPC-H subset
-- MindsDB-compatible SQL syntax (LIMIT instead of TOP)
-- String, numeric, and date operations
-- Subqueries, CASE statements, and window functions
-
 ## 🤝 Contributing
 
 Contributions are welcome! Here's how you can help:
@@ -137,24 +115,6 @@ Contributions are welcome! Here's how you can help:
 - Update documentation when adding features
 - Ensure CI passes before submitting PR
 
-## 📈 Monitoring & Reports
-
-### GitHub Actions
-
-All tests run automatically via GitHub Actions:
-
-- **Trigger**: On push to main/develop or pull request
-- **Environment**: Fresh Docker containers for each run
-- **Duration**: Typically 5-10 minutes per handler
-- **Artifacts**: Coverage reports and test logs
-
-### Coverage Reports
-
-Test coverage is tracked and reported for each handler:
-
-- View coverage in GitHub Actions artifacts
-- Local coverage: `pytest tests/ --cov=. --cov-report=html`
-
 ## 🔗 Useful Links
 
 - **MindsDB Documentation**: <https://docs.mindsdb.com/>
@@ -162,14 +122,6 @@ Test coverage is tracked and reported for each handler:
 - **Oracle Handler**: <https://docs.mindsdb.com/integrations/data-integrations/oracle>
 - **MS SQL Handler**: <https://docs.mindsdb.com/integrations/data-integrations/microsoft-sql-server>
 - **TPC-H Benchmark**: <http://www.tpc.org/tpch/>
-
-## 📝 Individual Handler Documentation
-
-Each database handler has detailed documentation:
-
-- **[PostgreSQL Handler](./postgresql/README.md)** - Setup, tests, and examples
-- **[Oracle XE Handler](./oracle/README.md)** - TPC-H benchmarks and Oracle-specific features
-- **[MS SQL Server Handler](./mssql/README.md)** - Docker setup and MindsDB-compatible queries
 
 ## 📜 License
 
