@@ -54,3 +54,28 @@ def verify_mindsdb_ready() -> str:
 def mindsdb_connection(verify_mindsdb_ready: str) -> str:
     """Ensure MindsDB is ready for files handler tests."""
     return verify_mindsdb_ready
+
+
+@pytest.fixture(scope="session")
+def mindsdb_database(mindsdb_connection: str) -> str:
+    """Create and return the MindsDB database name for testing."""
+    db_name = "mindsdb_files_test_db"
+    create_db_query = f"CREATE DATABASE IF NOT EXISTS {db_name}"
+    execute_sql_via_mindsdb(create_db_query)
+    logger.info("Using MindsDB database: %s", db_name)
+    return db_name
+
+
+@pytest.fixture(scope="function", autouse=True)
+def setup_files_table(mindsdb_database: str):
+    """Set up the files table before each test and clean up after."""
+    create_table_query = f"""
+    CREATE TABLE IF NOT EXISTS {mindsdb_database}.test (
+        id INT PRIMARY KEY,
+        name VARCHAR(255)
+    )
+    """
+    execute_sql_via_mindsdb(create_table_query)
+    yield
+    drop_table_query = f"DROP TABLE IF EXISTS {mindsdb_database}.test"
+    execute_sql_via_mindsdb(drop_table_query)
