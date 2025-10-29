@@ -69,13 +69,20 @@ def mindsdb_database(mindsdb_connection: str) -> str:
 @pytest.fixture(scope="function", autouse=True)
 def setup_files_table(mindsdb_database: str):
     """Set up the files table before each test and clean up after."""
+    drop_table_query = f"DROP TABLE {mindsdb_database}.test"
     create_table_query = f"""
     CREATE TABLE {mindsdb_database}.test (
         id INT PRIMARY KEY,
         name VARCHAR(255)
     )
     """
-    execute_sql_via_mindsdb(create_table_query)
-    yield
-    drop_table_query = f"DROP TABLE IF EXISTS {mindsdb_database}.test"
     execute_sql_via_mindsdb(drop_table_query)
+    execute_sql_via_mindsdb(create_table_query)
+    try:
+        yield
+    finally:
+        execute_sql_via_mindsdb(drop_table_query)
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "handler: tests for the files handler")
