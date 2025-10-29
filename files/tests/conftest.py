@@ -61,7 +61,12 @@ def mindsdb_database(mindsdb_connection: str) -> str:
     """Create and return the MindsDB database name for testing."""
     db_name = "mindsdb_files_test_db"
     create_db_query = f"CREATE DATABASE {db_name}"
-    execute_sql_via_mindsdb(create_db_query)
+    try:
+        execute_sql_via_mindsdb(create_db_query)
+    except Exception as exc:  # pragma: no cover - depends on existing db state
+        message = str(exc).lower()
+        if "already exists" not in message:
+            raise
     logger.info("Using MindsDB database: %s", db_name)
     return db_name
 
@@ -70,12 +75,22 @@ def mindsdb_database(mindsdb_connection: str) -> str:
 def setup_files_table(mindsdb_database: str):
     """Set up the files table before each test and clean up after."""
     create_table_query = f"""
-    CREATE TABLE {mindsdb_database}.test (
+    CREATE TABLE IF NOT EXISTS {mindsdb_database}.test (
         id INT PRIMARY KEY,
         name VARCHAR(255)
     )
     """
+    truncate_table_query = f"DELETE FROM {mindsdb_database}.test"
     execute_sql_via_mindsdb(create_table_query)
-    yield
-    drop_table_query = f"DROP TABLE IF EXISTS {mindsdb_database}.test"
-    execute_sql_via_mindsdb(drop_table_query)
+    execute_sql_via_mindsdb(truncate_table_query)
+    try:
+        yield
+    finally:
+        try:
+            execute_sql_via_mindsdb(truncate_table_query)
+        except Exception as exc:  # pragma: no cover - cleanup best-effort
+            logger.warning("Failed to clean up files test table: %s", exc)
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "handler: tests for the files handler")
