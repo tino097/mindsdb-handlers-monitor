@@ -42,7 +42,8 @@ jobs:
           # Install MindsDB from your fork or main repo
           git clone https://github.com/mindsdb/mindsdb.git
           cd mindsdb
-          pip install -e ".[all]"
+          git checkout mindsdb-light-v0
+          pip install -e .
 
           echo "🚀 Starting MindsDB..."
           MINDSDB_NO_STUDIO=1 python -m mindsdb --api http --verbose > /tmp/mindsdb.log 2>&1 &
