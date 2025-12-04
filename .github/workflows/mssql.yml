@@ -1,16 +1,16 @@
 name: MindsDB MS SQL Server Monitor CI
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
     paths:
       - "mssql/**"
       - ".github/workflows/mssql-tests.yml"
   pull_request:
-    branches: [main, develop]
+    branches: [main]
     paths:
       - "mssql/**"
       - ".github/workflows/mssql-tests.yml"
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -129,7 +129,7 @@ jobs:
           pip install -e ".[postgres, mysql, snowflake]"
           sleep 10
           echo "🚀 Starting MindsDB..."
-          MINDSDB_NO_STUDIO=1 python -m mindsdb --api http --verbose &
+          MINDSDB_NO_STUDIO=1 python -m mindsdb  > /tmp/mindsdb.log 2>&1 &
           echo "MINDSDB_PID=$!" >> $GITHUB_ENV
           for i in $(seq 1 180); do
             echo "[$i] Checking MindsDB..."
