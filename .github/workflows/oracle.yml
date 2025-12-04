@@ -116,7 +116,8 @@ jobs:
           git clone https://github.com/mindsdb/mindsdb.git
           cd mindsdb
           git checkout mindsdb-light-v0
-          pip install -e .
+          pip install -e ".[postgres, mysql, snowflake]"
+          
           echo "🚀 Starting MindsDB..."
           MINDSDB_NO_STUDIO=1 python -m mindsdb --api http --verbose &
           echo "MINDSDB_PID=$!" >> $GITHUB_ENV
