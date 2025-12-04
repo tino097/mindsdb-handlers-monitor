@@ -66,13 +66,13 @@ jobs:
           cd mindsdb
           git checkout mindsdb-light-v0
           pip install -e ".[postgres, mysql, snowflake]"
-          sleep 10
+
           echo "🚀 Starting MindsDB..."
           python -m mindsdb --api=http  > /tmp/mindsdb.log 2>&1 &
           echo "MINDSDB_PID=$!" >> $GITHUB_ENV
 
           echo "⏳ Waiting for MindsDB to be ready..."
-          for i in $(seq 1 180); do
+          for i in $(seq 1 30); do
             echo "[$i] Checking MindsDB..."
             if curl -sf http://127.0.0.1:47334/api/status >/dev/null; then
               echo "✅ MindsDB is ready!"
