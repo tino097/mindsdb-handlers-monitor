@@ -47,7 +47,7 @@ jobs:
 
           sleep 10
           echo "🚀 Starting MindsDB..."
-          MINDSDB_NO_STUDIO=1 python -m mindsdb  > /tmp/mindsdb.log 2>&1 &
+          python -m mindsdb --api=http > /tmp/mindsdb.log 2>&1 &
           echo "MINDSDB_PID=$!" >> $GITHUB_ENV
 
           echo "⏳ Waiting for MindsDB to be ready..."
