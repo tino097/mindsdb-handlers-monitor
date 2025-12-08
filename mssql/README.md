@@ -22,8 +22,8 @@
 | **⚠️ Errors** | 0 |
 | **⏭️ Skipped** | 0 |
 | **Success Rate** | 100.0% |
-| **Duration** | 1.75s |
-| **Last Updated** | 2025-12-04 18:14 UTC |
+| **Duration** | 2.20s |
+| **Last Updated** | 2025-12-08 15:43 UTC |
 
 [📋 View detailed results](https://github.com/tino097/mindsdb-handlers-monitor/actions/workflows/mssql.yml)
 
