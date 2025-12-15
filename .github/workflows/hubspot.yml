@@ -41,6 +41,7 @@ jobs:
 
           # Install MindsDB from your fork or main repo
           git clone https://github.com/mindsdb/mindsdb.git
+          cd mindsdb
           pip install -e ".[hubspot]"
 
           echo "🚀 Starting MindsDB..."
