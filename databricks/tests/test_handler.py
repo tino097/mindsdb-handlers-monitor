@@ -1,6 +1,8 @@
 import pytest
 import time
 
+from conftest import execute_sql_via_mindsdb
+
 
 class TestDatabricksDatasourceCreation:
     """Tests for Databricks datasource lifecycle."""
@@ -19,7 +21,7 @@ class TestDatabricksDatasourceCreation:
 
     def test_datasource_connection_valid(self, mindsdb_client, databricks_datasource):
         """Verify datasource connection is valid and can query Databricks."""
-        result = mindsdb_client.query(f"SHOW TABLES FROM {databricks_datasource}")
+        result = execute_sql_via_mindsdb(f"SHOW TABLES FROM {databricks_datasource}")
 
         assert "error" not in result or result.get("error") is None
 
@@ -29,7 +31,7 @@ class TestDatabricksTables:
 
     def test_show_tables(self, mindsdb_client, databricks_datasource):
         """Test showing available tables in Databricks datasource."""
-        result = mindsdb_client.query(f"SHOW TABLES FROM {databricks_datasource}")
+        result = execute_sql_via_mindsdb(f"SHOW TABLES FROM {databricks_datasource}")
 
         assert "data" in result
 
@@ -39,7 +41,7 @@ class TestDatabricksTables:
     def test_show_catalogs(self, mindsdb_client, databricks_datasource):
         """Test listing available catalogs."""
         try:
-            result = mindsdb_client.query(
+            result = execute_sql_via_mindsdb(
                 f"SELECT * FROM {databricks_datasource}.information_schema.catalogs LIMIT 10"
             )
             assert "data" in result or "error" not in str(result)
@@ -49,7 +51,7 @@ class TestDatabricksTables:
     def test_show_schemas(self, mindsdb_client, databricks_datasource):
         """Test listing available schemas."""
         try:
-            result = mindsdb_client.query(
+            result = execute_sql_via_mindsdb(
                 f"SELECT * FROM {databricks_datasource}.information_schema.schemata LIMIT 10"
             )
             assert "data" in result or "error" not in str(result)
@@ -65,7 +67,7 @@ class TestDatabricksQueries:
     ):
         """Test simple SELECT query."""
         try:
-            result = mindsdb_client.query(
+            result = execute_sql_via_mindsdb(
                 f"SELECT * FROM {databricks_datasource}.{sample_table_name} LIMIT 5"
             )
 
@@ -80,14 +82,14 @@ class TestDatabricksQueries:
     ):
         """Test SELECT with specific columns."""
         try:
-            result = mindsdb_client.query(
+            result = execute_sql_via_mindsdb(
                 f"SELECT * FROM {databricks_datasource}.{sample_table_name} LIMIT 1"
             )
 
             if "column_names" in result and result["column_names"]:
                 first_col = result["column_names"][0]
 
-                result2 = mindsdb_client.query(
+                result2 = execute_sql_via_mindsdb(
                     f"SELECT {first_col} FROM {databricks_datasource}.{sample_table_name} LIMIT 5"
                 )
 
@@ -101,7 +103,7 @@ class TestDatabricksQueries:
     ):
         """Test SELECT with WHERE clause."""
         try:
-            result = mindsdb_client.query(
+            result = execute_sql_via_mindsdb(
                 f"SELECT * FROM {databricks_datasource}.{sample_table_name} WHERE 1=1 LIMIT 5"
             )
 
@@ -115,14 +117,14 @@ class TestDatabricksQueries:
     ):
         """Test SELECT with ORDER BY clause."""
         try:
-            result = mindsdb_client.query(
+            result = execute_sql_via_mindsdb(
                 f"SELECT * FROM {databricks_datasource}.{sample_table_name} LIMIT 1"
             )
 
             if "column_names" in result and result["column_names"]:
                 first_col = result["column_names"][0]
 
-                result2 = mindsdb_client.query(
+                result2 = execute_sql_via_mindsdb(
                     f"""
                     SELECT * FROM {databricks_datasource}.{sample_table_name} 
                     ORDER BY {first_col} 
@@ -140,7 +142,7 @@ class TestDatabricksQueries:
     ):
         """Test COUNT aggregation."""
         try:
-            result = mindsdb_client.query(
+            result = execute_sql_via_mindsdb(
                 f"SELECT COUNT(*) FROM {databricks_datasource}.{sample_table_name}"
             )
 
@@ -163,7 +165,7 @@ class TestDatabricksMetadata:
     ):
         """Test describing table structure."""
         try:
-            result = mindsdb_client.query(
+            result = execute_sql_via_mindsdb(
                 f"DESCRIBE {databricks_datasource}.{sample_table_name}"
             )
 
@@ -177,7 +179,7 @@ class TestDatabricksMetadata:
     ):
         """Test getting column type information."""
         try:
-            result = mindsdb_client.query(
+            result = execute_sql_via_mindsdb(
                 f"SELECT * FROM {databricks_datasource}.{sample_table_name} LIMIT 1"
             )
 
@@ -196,14 +198,14 @@ class TestDatabricksAdvancedQueries:
     def test_group_by(self, mindsdb_client, databricks_datasource, sample_table_name):
         """Test GROUP BY aggregation."""
         try:
-            result = mindsdb_client.query(
+            result = execute_sql_via_mindsdb(
                 f"SELECT * FROM {databricks_datasource}.{sample_table_name} LIMIT 1"
             )
 
             if "column_names" in result and len(result["column_names"]) > 0:
                 first_col = result["column_names"][0]
 
-                result2 = mindsdb_client.query(
+                result2 = execute_sql_via_mindsdb(
                     f"""
                     SELECT {first_col}, COUNT(*) as cnt 
                     FROM {databricks_datasource}.{sample_table_name} 
@@ -220,14 +222,14 @@ class TestDatabricksAdvancedQueries:
     def test_distinct(self, mindsdb_client, databricks_datasource, sample_table_name):
         """Test DISTINCT query."""
         try:
-            result = mindsdb_client.query(
+            result = execute_sql_via_mindsdb(
                 f"SELECT * FROM {databricks_datasource}.{sample_table_name} LIMIT 1"
             )
 
             if "column_names" in result and len(result["column_names"]) > 0:
                 first_col = result["column_names"][0]
 
-                result2 = mindsdb_client.query(
+                result2 = execute_sql_via_mindsdb(
                     f"""
                     SELECT DISTINCT {first_col} 
                     FROM {databricks_datasource}.{sample_table_name} 
@@ -243,7 +245,7 @@ class TestDatabricksAdvancedQueries:
     def test_subquery(self, mindsdb_client, databricks_datasource, sample_table_name):
         """Test subquery capability."""
         try:
-            result = mindsdb_client.query(
+            result = execute_sql_via_mindsdb(
                 f"""
                 SELECT * FROM (
                     SELECT * FROM {databricks_datasource}.{sample_table_name} LIMIT 10
@@ -264,7 +266,7 @@ class TestDatabricksErrorHandling:
     def test_invalid_table_name(self, mindsdb_client, databricks_datasource):
         """Test error handling for invalid table name."""
         try:
-            result = mindsdb_client.query(
+            result = execute_sql_via_mindsdb(
                 f"SELECT * FROM {databricks_datasource}.nonexistent_table_xyz123"
             )
 
@@ -276,7 +278,7 @@ class TestDatabricksErrorHandling:
     ):
         """Test error handling for invalid column name."""
         try:
-            result = mindsdb_client.query(
+            result = execute_sql_via_mindsdb(
                 f"SELECT nonexistent_column_xyz FROM {databricks_datasource}.{sample_table_name}"
             )
 
@@ -286,7 +288,7 @@ class TestDatabricksErrorHandling:
     def test_syntax_error(self, mindsdb_client, databricks_datasource):
         """Test error handling for SQL syntax error."""
         try:
-            result = mindsdb_client.query(f"SELEC * FORM {databricks_datasource}")
+            result = execute_sql_via_mindsdb(f"SELEC * FORM {databricks_datasource}")
 
         except Exception as e:
             pass
