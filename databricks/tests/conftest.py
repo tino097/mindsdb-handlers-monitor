@@ -95,8 +95,8 @@ def databricks_datasource(
     CREATE DATABASE {ds_name}
     WITH engine = 'databricks',
     parameters = {{
-        'api_token': '{databricks_config["api_token"]}',
-        'hostname': '{databricks_config["hostname"]}',
+        'access_token': '{databricks_config["api_token"]}',
+        'server_hostname': '{databricks_config["hostname"]}',
         'http_path': '{databricks_config["http_path"]}',
         'schema_name': '{databricks_config["schema_name"]}'
     }};
