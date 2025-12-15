@@ -68,6 +68,10 @@ jobs:
             - name: Run tests with result tracking
               env:
                   MINDSDB_API_URL: http://localhost:47334
+                  DATABRICKS_API_TOKEN: ${{ secrets.DATABRICKS_API_TOKEN }}
+                  DATABRICKS_HOSTNAME: ${{ secrets.DATABRICKS_HOSTNAME }}
+                  DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+                  DATABRICKS_SCHEMA_NAME: ${{ secrets.DATABRICKS_SCHEMA_NAME }}
               run: |
                   echo "🧪 Running Files handler tests..."
 
