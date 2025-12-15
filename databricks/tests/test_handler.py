@@ -227,13 +227,13 @@ class TestDatabricksAdvancedQueries:
             pytest.skip(f"DISTINCT query not accessible: {e}")
 
     @pytest.mark.query
-    def test_subquery(self, databricks_datasource, sample_table_name):
+    def test_subquery(self, databricks_datasource):
         """Test subquery capability."""
         try:
             result = execute_sql_via_mindsdb(
                 f"""
                 SELECT * FROM (
-                    SELECT * FROM {databricks_datasource}.{sample_table_name} LIMIT 10
+                    SELECT * FROM {DATABRICKS_DB}.orders LIMIT 10
                 ) subq
                 LIMIT 5
                 """
@@ -259,11 +259,11 @@ class TestDatabricksErrorHandling:
             assert "error" in str(e).lower() or "not found" in str(e).lower() or True
 
     @pytest.mark.handler
-    def test_invalid_column_name(self, databricks_datasource, sample_table_name):
+    def test_invalid_column_name(self, databricks_datasource):
         """Test error handling for invalid column name."""
         try:
             result = execute_sql_via_mindsdb(
-                f"SELECT nonexistent_column_xyz FROM {databricks_datasource}.{sample_table_name}"
+                f"SELECT nonexistent_column_xyz FROM {DATABRICKS_DB}.orders"
             )
         except Exception as e:
             pass
