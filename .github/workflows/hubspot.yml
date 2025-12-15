@@ -4,13 +4,13 @@ on:
     push:
         branches: ["main"]
         paths:
-            - "files/**"
-            - ".github/workflows/files.yml"
+            - "hubspot/**"
+            - ".github/workflows/hubspot.yml"
     pull_request:
         branches: ["main"]
         paths:
-            - "files/**"
-            - ".github/workflows/files.yml"
+            - "hubspot/**"
+            - ".github/workflows/hubspot.yml"
     workflow_dispatch: {}
 
 permissions:
@@ -271,31 +271,31 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: mindsdb-files-test-results
+          name: mindsdb-hubspot-test-results
           path: |
             /tmp/test_results/
             /tmp/mindsdb.log
             /tmp/combined_summary.md
           retention-days: 7
 
-      - name: Update Files Handler README with test results
+      - name: Update HubSpot Handler README with test results
         if: always() && github.event_name != 'pull_request'
         run: |
-          echo "📝 Updating files/README.md with latest test results..."
+          echo "📝 Updating hubspot/README.md with latest test results..."
           python3 .github/scripts/update_readme.py \
             /tmp/test_results/junit.xml \
-            files/README.md \
-            "Files" \
-            files.yml
+            hubspot/README.md \
+            "HubSpot" \
+            hubspot.yml
 
       - name: Commit README changes
         if: always() && github.event_name != 'pull_request'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add oracle/README.md || true
+          git add hubspot/README.md || true
           git diff --quiet && git diff --staged --quiet || \
-            (git commit -m "docs(oracle): Update test results in README [skip ci]" && git push) || \
+            (git commit -m "docs(hubspot): Update test results in README [skip ci]" && git push) || \
             echo "No changes to commit"
 
       - name: Cleanup
