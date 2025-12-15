@@ -1,7 +1,7 @@
 import os
 import time
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import pytest
 import requests
@@ -12,28 +12,15 @@ logging.basicConfig(level=LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
 
-# Configuration from environment variables
 MINDSDB_API_URL = os.getenv("MINDSDB_API_URL", "http://localhost:47334")
-DATABRICKS_API_TOKEN = os.getenv("DATABRICKS_API_TOKEN")
-
-DATABRICKS_HOSTNAME = os.getenv("DATABRICKS_HOSTNAME")
-DATABRICKS_HTTP_PATH = os.getenv("DATABRICKS_HTTP_PATH")
-DATABRICKS_SCHEMA_NAME = os.getenv("DATABRICKS_SCHEMA_NAME")
+DATABRICKS_DB = os.getenv("DATABRICKS_DB", "databricks_test_datasource")
+OLLAMA_API_BASE = os.getenv("OLLAMA_API_BASE", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "tinyllama")
 
 
 def execute_sql_via_mindsdb(sql: str, timeout: int = 300) -> Dict[str, Any]:
-    """
-    Execute a SQL query against MindsDB and return the JSON response.
-
-    Args:
-            sql: SQL query string to execute
-            timeout: Request timeout in seconds
-    Returns:
-            Response JSON dict containing 'data' or 'error' keys
-    Raises:
-            Exception: If API request fails or MindsDB returns an error
-    """
-    logger.debug("Executing SQL via MindsDB: %s", sql.strip()[:200])
+    """Execute a SQL query against MindsDB and return the JSON response."""
+    logger.debug("Executing SQL via MindsDB: %s", sql.strip())
     resp = requests.post(
         f"{MINDSDB_API_URL}/api/sql/query",
         json={"query": sql},
@@ -50,32 +37,15 @@ def execute_sql_via_mindsdb(sql: str, timeout: int = 300) -> Dict[str, Any]:
 
 
 @pytest.fixture(scope="session")
-def mindsdb_api_url() -> str:
-    """Return MindsDB API base URL."""
-    return MINDSDB_API_URL
-
-
-@pytest.fixture(scope="session")
-def databricks_config() -> Dict[str, Optional[str]]:
-    """Return Databricks configuration from environment variables."""
-    return {
-        "api_token": DATABRICKS_API_TOKEN,
-        "hostname": DATABRICKS_HOSTNAME,
-        "http_path": DATABRICKS_HTTP_PATH,
-        "schema_name": DATABRICKS_SCHEMA_NAME,
-    }
-
-
-@pytest.fixture(scope="session")
 def verify_mindsdb_ready() -> str:
     """Wait until the MindsDB HTTP API is reachable."""
     max_retries = 60
-    logger.info("Waiting for MindsDB to be ready...")
+    logger.info("🧠 Waiting for MindsDB to be ready...")
     for i in range(max_retries):
         try:
             resp = requests.get(f"{MINDSDB_API_URL}/api/status", timeout=5)
             if resp.status_code == 200:
-                logger.info("MindsDB is ready!")
+                logger.info("✅ MindsDB is ready!")
                 return MINDSDB_API_URL
         except requests.exceptions.RequestException:
             pass
@@ -85,57 +55,66 @@ def verify_mindsdb_ready() -> str:
 
 
 @pytest.fixture(scope="session")
-def databricks_datasource(
-    verify_mindsdb_ready: str, databricks_config: Dict[str, Optional[str]]
-) -> str:
-    """Create and return the Databricks datasource name in MindsDB."""
-    ds_name = "databricks_test_datasource"
-    logger.info("Creating Databricks datasource in MindsDB: %s", ds_name)
-    create_ds_sql = f"""
-    CREATE DATABASE {ds_name}
-    WITH engine = 'databricks',
-    parameters = {{
-        'access_token': '{databricks_config["api_token"]}',
-        'server_hostname': '{databricks_config["hostname"]}',
-        'http_path': '{databricks_config["http_path"]}',
-        'schema_name': '{databricks_config["schema_name"]}'
-    }};
+def mindsdb_connection(verify_mindsdb_ready: str) -> str:
+    """Create a MindsDB connection to the Databricks database."""
+    mindsdb_url = verify_mindsdb_ready
+    connection_params = {
+        "server_hostname": os.getenv("DATABRICKS_HOSTNAME"),
+        "http_path": os.getenv("DATABRICKS_HTTP_PATH"),
+        "access_token": os.getenv("DATABRICKS_API_TOKEN"),
+        "schema": os.getenv("DATABRICKS_SCHEMA_NAME", "default"),
+    }
+
+    param_str = ",\n            ".join(
+        f'"{k}": {repr(v) if not isinstance(v, int) else v}'
+        for k, v in connection_params.items()
+    )
+
+    sql = f"""
+        CREATE DATABASE {DATABRICKS_DB}
+        WITH ENGINE = 'databricks',
+        PARAMETERS = {{
+            {param_str}
+        }};
     """
-    execute_sql_via_mindsdb(create_ds_sql)
-    logger.info("Databricks datasource created: %s", ds_name)
-    return ds_name
+
+    logger.info(f"🔗 Creating MindsDB Databricks database '{DATABRICKS_DB}' ...")
+    try:
+        execute_sql_via_mindsdb(sql, timeout=60)
+        logger.info("✅ MindsDB Databricks connection created")
+
+        test_sql = "SELECT 1 as test_value;"
+        execute_sql_via_mindsdb(test_sql, timeout=10)
+        logger.info("✅ MindsDB Databricks connection test successful")
+
+        yield mindsdb_url
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "already exists" in error_msg:
+            logger.info(f"⚠️ Database {DATABRICKS_DB} already exists, continuing...")
+            yield mindsdb_url
+        else:
+            logger.error(f"❌ Error setting up MindsDB connection: {e}")
+            raise
 
 
 @pytest.fixture(scope="session")
-def databricks_cleanup(databricks_datasource: str):
-    """Cleanup Databricks datasource after tests are done."""
+def databricks_datasource(mindsdb_connection) -> str:
+    """Return the Databricks datasource name."""
+    return DATABRICKS_DB
+
+
+
+@pytest.fixture(autouse=True)
+def log_test_info(request):
+    """Log the start and end of each test with its duration."""
+    test_name = request.node.name
+    logger.info(f"🧪 Starting test: {test_name}")
+    start_time = time.time()
     yield
-    logger.info("Dropping Databricks datasource: %s", databricks_datasource)
-    drop_ds_sql = f"DROP DATABASE IF EXISTS {databricks_datasource};"
-    try:
-        execute_sql_via_mindsdb(drop_ds_sql)
-        logger.info("Databricks datasource dropped: %s", databricks_datasource)
-    except Exception as e:
-        logger.warning(f"Could not drop Databricks datasource: {e}")
-
-
-def execute_sql(mindsdb_api_url: str):
-    """Helper fixture to execute SQL queries against MindsDB."""
-
-    def _execute(query: str, timeout: int = 60) -> Dict[str, Any]:
-        """
-        Execute SQL query and return response.
-
-        Args:
-            query: SQL query string
-            timeout: Request timeout in seconds
-
-        Returns:
-            Response JSON dict
-        """
-        return execute_sql_via_mindsdb(query, timeout)
-
-    return _execute
+    end_time = time.time()
+    duration = end_time - start_time
+    logger.info(f"✅ Completed test: {test_name} ({duration:.2f}s)")
 
 
 def pytest_configure(config):
@@ -152,7 +131,7 @@ def pytest_configure(config):
 
 def pytest_sessionstart(session):
     """Log the start of the pytest session."""
-    logger.info("Starting MindsDB Databricks Handler Test Suite")
+    logger.info("🚀 Starting MindsDB Databricks Handler Test Suite")
     logger.info("=" * 60)
 
 
@@ -160,6 +139,6 @@ def pytest_sessionfinish(session, exitstatus):
     """Log the end of the pytest session."""
     logger.info("=" * 60)
     if exitstatus == 0:
-        logger.info("All tests completed successfully!")
+        logger.info("✅ All tests completed successfully!")
     else:
-        logger.error(f"Tests completed with exit status: {exitstatus}")
+        logger.error(f"❌ Tests completed with exit status: {exitstatus}")
