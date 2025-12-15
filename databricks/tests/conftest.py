@@ -92,7 +92,7 @@ def databricks_datasource(
     ds_name = "databricks_test_datasource"
     logger.info("Creating Databricks datasource in MindsDB: %s", ds_name)
     create_ds_sql = f"""
-    CREATE DATASOURCE {ds_name}
+    CREATE DATABASE {ds_name}
     WITH engine = 'databricks',
     parameters = {{
         'api_token': '{databricks_config["api_token"]}',
@@ -111,7 +111,7 @@ def databricks_cleanup(databricks_datasource: str):
     """Cleanup Databricks datasource after tests are done."""
     yield
     logger.info("Dropping Databricks datasource: %s", databricks_datasource)
-    drop_ds_sql = f"DROP DATASOURCE IF EXISTS {databricks_datasource};"
+    drop_ds_sql = f"DROP DATABASE IF EXISTS {databricks_datasource};"
     try:
         execute_sql_via_mindsdb(drop_ds_sql)
         logger.info("Databricks datasource dropped: %s", databricks_datasource)
